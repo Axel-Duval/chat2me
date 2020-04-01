@@ -36,16 +36,21 @@ int main(int argc, char *argv[]){
     printf("Socket created !\n");
 
     /* Open connexion */
-    connect(dS, (struct sockaddr *) &aS, lgA);
+    int con = connect(dS, (struct sockaddr *) &aS, lgA);
+    if(con < 0){
+        printf("! Can't find the target !\n");
+		exit(1);
+    }
     printf("Connexion established !\n");
 
     /* Ask and send the message */
     printf("Enter your message : ");
     scanf("%s",buffer);
-    send(dS, buffer, strlen(buffer), 0) ; 
+    //printf("%ld", strlen(buffer));
+    send(dS, buffer, strlen(buffer), 0);
 
     /* Close connexion */
-    close(dS) ;
+    close(dS);
 
     return 1;
 }

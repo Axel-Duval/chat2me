@@ -53,18 +53,17 @@ int main(int argc, char *argv[]){
     int dSC= accept(dS, (struct sockaddr*)&aC,&lg);
 
 
-
+    /*  */
     int rc;
     while(rc = recv(dSC, buffer, sizeof(buffer), 0) >= 0){
-		/* Get the message*/
+		/* Print the message*/
 		if(rc == 0){
 			printf("Got an empty message...");
 		}
 		else{
-			printf("%s:%d - %s ",inet_ntoa(aC.sin_addr),ntohs(aC.sin_port),buffer);
+			printf("%s:%d - %s\n",inet_ntoa(aC.sin_addr),ntohs(aC.sin_port),buffer);
 		}
 		memset(buffer,0,sizeof(char)*256);
-        break;
 	}
 
     /* Close connexion */
