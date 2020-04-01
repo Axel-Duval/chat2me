@@ -6,19 +6,58 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 /**
 * This version allows a client to send a message
 * Run the program : gcc -o client client.c && ./client TARGET_IP PORT
 */
 
+void *sendMsg(int dS){
+    char buffer[256];
+    int sd;
+    while(1){
+        printf("Send your message :\n");
+        fgets(buffer,256,stdin);
+        sd=send(dS,&buffer,strlen(buffer),0);
+        if(sd<0){
+            perror("Error to send the message.");
+            exit(0);
+        } 
+        if(strcmp(buffer,"fin") == 0){
+            printf("End of the communication ...\n");
+            close(dS);
+            exit(0);
+        }
+    }
+}
+
+void *recvMsg(int dS){
+    char buffer[256];
+    int rc;
+    while(1){
+        rc = recv(dS, &buffer, 256, 0);
+        if(rc < 0){
+            perror("Error to receive the message.");
+            exit(0);
+        }
+        printf("Message receive : %s\n",buffer);
+        if(strcmp(buffer,"fin") == 0){
+            printf("End of the communication ...\n");
+            close(dS);
+            exit(0);
+        }
+    }
+}
+
+
 int main(int argc, char *argv[]){
 
     /* Checking args */
     if(argc != 3){
-		printf("! I need to be call like : program TARGET_IP PORT !\n");
-		exit(1);
-	}
+        printf("! I need to be call like : program TARGET_IP PORT !\n");
+        exit(1);
+    }
 
     /* Create buffer for messages */
     char buffer[256];
@@ -39,7 +78,7 @@ int main(int argc, char *argv[]){
     int con = connect(dS, (struct sockaddr *) &aS, lgA);
     if(con < 0){
         printf("! Can't find the target !\n");
-		exit(1);
+        exit(1);
     }
 
     /* Waiting the message from the server */
@@ -60,18 +99,22 @@ int main(int argc, char *argv[]){
         }
     }
 
-    int cpt=0;
     /*Now they can communicate*/
-    while(cpt < 6){
-         /* Ask and send the message */
-        printf("Enter your message : ");
-        fgets(buffer,256,stdin);
-        send(dS, buffer, strlen(buffer), 0);
-        cpt++;
-    }
+    
+
+    pthread_t sdM;
+    pthread_t rcM;       
+
+    pthread_create(&sdM,0,sendMsg,dS);
+    pthread_create(&rcM,0,recvMsg,dS);
+
+    pthread_join(sdM,0);
+    pthread_join(rcM,0);
+    
    
 
     /* Close connexion */
     close(dS);
+
     return 1;
 }
