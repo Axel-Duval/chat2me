@@ -41,12 +41,35 @@ int main(int argc, char *argv[]){
         printf("! Can't find the target !\n");
 		exit(1);
     }
-    printf("Connexion established !\n");
 
-    /* Ask and send the message */
-    printf("Enter your message : ");
-    fgets(buffer,256,stdin);
-    send(dS, buffer, strlen(buffer), 0);
+    /* Waiting the message from the server */
+    int rc = recv(dS, &buffer, sizeof(buffer),0);
+    if(rc<0){
+        perror("Problem with the reception");
+    } else { 
+        printf("%s\n", buffer);
+        memset(buffer,0,sizeof(char)*256);
+
+        /*Blocking function until the 2nd connection*/
+        rc = recv(dS, &buffer, sizeof(buffer),0);
+        if (rc<0) {
+            perror("Problem with the reception");
+        } else {
+            printf("%s\n", buffer);
+            memset(buffer,0,sizeof(char)*256);
+        }
+    }
+
+    int cpt=0;
+    /*Now they can communicate*/
+    while(cpt < 6){
+         /* Ask and send the message */
+        printf("Enter your message : ");
+        fgets(buffer,256,stdin);
+        send(dS, buffer, strlen(buffer), 0);
+        cpt++;
+    }
+   
 
     /* Close connexion */
     close(dS);
