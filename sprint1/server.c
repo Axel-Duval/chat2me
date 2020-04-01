@@ -25,7 +25,7 @@ void *thread_1(void *arg){
     struct sockets_struct *args = (void *)arg;
     int socket1 = args->socket1;
     int socket2 = args->socket2;
-    int rcv = recv(socket1);
+    printf("Nous sommes dans le thread 1.\n");
     pthread_exit(NULL);
 }
 
@@ -33,7 +33,7 @@ void *thread_2(void *arg){
     struct sockets_struct *args = (void *)arg;
     int socket1 = args->socket1;
     int socket2 = args->socket2;
-    printf("Nous sommes dans le thread 1.\n");
+    printf("Nous sommes dans le thread 2.\n");
     pthread_exit(NULL);
 }
 
@@ -78,7 +78,7 @@ int main(int argc, char *argv[]){
 
     int dSC;
     int tmp;
-    int confirm = 1;
+    char * confirm = "v";
     while(1){
         /* Accept the connexion from client 1 */
         int socketCli1 = accept(dS, (struct sockaddr*)&addrCli1,&lg1);
@@ -87,7 +87,7 @@ int main(int argc, char *argv[]){
             printf("Connexion established with our first client : %s:%d\n",inet_ntoa(addrCli1.sin_addr),ntohs(addrCli1.sin_port));
             printf("\033[0m");
         }
-        tmp = send(socketCli1,&confirm, sizeof(int),0);
+        tmp = send(socketCli1,confirm, sizeof(char),0);
         if(tmp < 0){
             printf("! Error sending confirmation to first client !\n");
         }
@@ -99,17 +99,17 @@ int main(int argc, char *argv[]){
             printf("Connexion established with our second client : %s:%d\n",inet_ntoa(addrCli2.sin_addr),ntohs(addrCli2.sin_port));
             printf("\033[0m");
         }
-        tmp = send(socketCli1,&confirm, sizeof(int),0);
+        tmp = send(socketCli2,confirm, sizeof(char),0);
         if(tmp < 0){
             printf("! Error sending confirmation to second client !\n");
         }
 
         /* Sending start signal to chat */
         char messageConfirmation[50] = "You can now chat !";
-        while(tmp = send(socketCli1,&confirm, sizeof(messageConfirmation),0) < 0){
+        while(tmp = send(socketCli1,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
             printf("! Error sending chat start\n");
         }
-        while(tmp = send(socketCli2,&confirm, sizeof(messageConfirmation),0) < 0){
+        while(tmp = send(socketCli2,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
             printf("! Error sending chat start\n");
         }
 
