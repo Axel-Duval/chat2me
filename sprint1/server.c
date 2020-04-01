@@ -137,7 +137,7 @@ int main(int argc, char *argv[]){
         /* Acceptation error */
     }
     printf("\033[0;32mConnexion established with our first client : %s:%d \033[0m\n",inet_ntoa(addrCli1.sin_addr),ntohs(addrCli1.sin_port));
-    while(tmp = send(socketCli1,&confirm, sizeof(confirm),0) <= 0){
+    while(tmp = send(socketCli1,&confirm, sizeof(confirm),0) < 0){
         /* Error sending message to client 1 */
         if(tmp == 0){
             /* Because of connexion lost with client 1, need to stop the program */
