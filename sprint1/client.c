@@ -18,13 +18,15 @@ void *sendMsg(void* dS){
     int* arg = dS;
     int sd;
     while(1){
-        printf("Send your message : ");
+        printf("Send your message :\n");
         fgets(buffer,256,stdin);
         sd=send(*arg,&buffer,strlen(buffer),0);
         if(sd<0){
             perror("Error to send the message.");
             exit(0);
-        } 
+        }
+        char *chfin = strchr(buffer, '\n');
+        *chfin = '\0';
         if(strcmp(buffer,"fin") == 0){
             printf("End of the communication ...\n");
             close(*arg);
@@ -43,7 +45,9 @@ void *recvMsg(void* dS){
             perror("Error to receive the message.");
             exit(0);
         }
-        printf("\nMessage receive : %s\n",buffer);
+        printf("Message receive : %s\n",buffer);
+        char *chfin = strchr(buffer, '\n');
+        *chfin = '\0';
         if(strcmp(buffer,"fin") == 0){
             printf("End of the communication ...\n");
             close(*arg);
