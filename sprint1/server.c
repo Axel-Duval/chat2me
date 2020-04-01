@@ -88,13 +88,20 @@ void *thread_2(void *arg){
     pthread_exit(NULL);
 }
 
+
+/* MAIN */
 int main(int argc, char *argv[]){
 
     /* Checking args */
     if(argc != 2){
-		printf("! I need to be call like : program PORT !\n");
+		printf("! I need to be call like -> :program PORT -lpthread !\n");
 		exit(1);
 	}
+
+    /* Define some constants */
+    int tmp;
+    char confirm[20] = "You are connected...";
+    char messageConfirmation[20] = "You can now chat !";
 
     /* Define target (ip:port) with calling program parameters */
     struct sockaddr_in ad;
@@ -117,80 +124,61 @@ int main(int argc, char *argv[]){
     listen(dS,10);
     printf("Start server on port : %s\n", argv[1]);
 
-    /* Create addr for clients */
+    /* Create addr for 2 clients */
     struct sockaddr_in addrCli1;
     struct sockaddr_in addrCli2;
     socklen_t lg1 = sizeof(struct sockaddr_in);
     socklen_t lg2 = sizeof(struct sockaddr_in);
 
-    int dSC;
-    int tmp;
-    char * confirm = "v";
-    while(1){
-        /* Accept the connexion from client 1 */
-        int socketCli1 = accept(dS, (struct sockaddr*)&addrCli1,&lg1);
-        if(socketCli1 > 0){
-            printf("\033[0;32m");
-            printf("Connexion established with our first client : %s:%d\n",inet_ntoa(addrCli1.sin_addr),ntohs(addrCli1.sin_port));
-            printf("\033[0m");
-        }
-        tmp = send(socketCli1,confirm, sizeof(char),0);
-        if(tmp < 0){
-            printf("! Error sending confirmation to first client !\n");
-        }
 
-        /* Accept the connexion from client 2 */
-        int socketCli2 = accept(dS, (struct sockaddr*)&addrCli2,&lg2);
-        if(socketCli2 > 0){
-            printf("\033[0;32m");
-            printf("Connexion established with our second client : %s:%d\n",inet_ntoa(addrCli2.sin_addr),ntohs(addrCli2.sin_port));
-            printf("\033[0m");
+    /* Accept the connexion from client 1 */
+    int socketCli1;
+    while(socketCli1 = accept(dS, (struct sockaddr*)&addrCli1,&lg1) < 0){
+        /* Acceptation error */
+    }
+    printf("\033[0;32mConnexion established with our first client : %s:%d \033[0m\n",inet_ntoa(addrCli1.sin_addr),ntohs(addrCli1.sin_port));
+    while(tmp = send(socketCli1,&confirm, sizeof(confirm),0) <= 0){
+        /* Error sending message to client 1 */
+        if(tmp == 0){
+            /* Because of connexion lost with client 1, need to stop the program */
+            exit(1);
         }
-        tmp = send(socketCli2,confirm, sizeof(char),0);
-        if(tmp < 0){
-            printf("! Error sending confirmation to second client !\n");
-        }
+    }
 
-        /* Sending start signal to chat */
-        char messageConfirmation[50] = "You can now chat !";
-        while(tmp = send(socketCli1,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
-            printf("! Error sending chat start\n");
-        }
-        while(tmp = send(socketCli2,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
-            printf("! Error sending chat start\n");
-        }
+    /* Accept the connexion from client 2 */
+    int socketCli2 = accept(dS, (struct sockaddr*)&addrCli2,&lg2);
+    if(socketCli2 > 0){
+        printf("\033[0;32mConnexion established with our second client : %s:%d \033[0m\n",inet_ntoa(addrCli2.sin_addr),ntohs(addrCli2.sin_port));
+    }
+    tmp = send(socketCli2,&confirm, sizeof(confirm),0);
+    if(tmp < 0){
+        printf("! Error sending confirmation to second client !\n");
+    }
 
-        /* Chat loop */
-        sockets.socket1 = socketCli1;
-        sockets.socket2 = socketCli2;
-        pthread_t thread1;
-        pthread_t thread2;
-        printf("Avant la création du thread.\n");
+    /* Sending start signal to clients */
+    while(tmp = send(socketCli1,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
+        printf("! Error sending chat start\n");
+    }
+    while(tmp = send(socketCli2,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
+        printf("! Error sending chat start\n");
+    }
 
-        if (pthread_create(&thread1, NULL, thread_1, &sockets)) {
-            perror("pthread_create");
-            return EXIT_FAILURE;
-        }
-        if (pthread_create(&thread2, NULL, thread_2, &sockets)) {
-            perror("pthread_create");
-            return EXIT_FAILURE;
-        }
+    /* Bind sockets on structure */
+    sockets.socket1 = socketCli1;
+    sockets.socket2 = socketCli2;
 
-        if (pthread_join(thread1, NULL)) {
-            perror("pthread_join");
-            return EXIT_FAILURE;
-        }
-        if (pthread_join(thread2, NULL)) {
-            perror("pthread_join");
-            return EXIT_FAILURE;
-        }
+    /* Create 2 threads */
+    pthread_t thread1;
+    pthread_t thread2;
+    pthread_create(&thread1, NULL, thread_1, &sockets);
+    pthread_create(&thread2, NULL, thread_2, &sockets);
 
-        printf("Après la création du thread.\n");
-	}
+    /* Join threads */
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
 
     /* Close connexion */
     close (dS);
     printf("Stop server\n");
-
     return 1;
 }
