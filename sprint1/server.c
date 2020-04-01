@@ -51,7 +51,11 @@ int main(int argc, char *argv[]){
 
     /* Accept the connexion from clients */
     int dSC= accept(dS, (struct sockaddr*)&aC,&lg);
-
+    if(dSC > 0){
+        printf("\033[0;32m");
+        printf("Connexion established with : %s:%d\n",inet_ntoa(aC.sin_addr),ntohs(aC.sin_port));
+        printf("\033[0m");
+    }
 
     /*  */
     int rc;
@@ -61,13 +65,15 @@ int main(int argc, char *argv[]){
 			printf("Got an empty message...");
 		}
 		else{
-			printf("%s:%d - %s\n",inet_ntoa(aC.sin_addr),ntohs(aC.sin_port),buffer);
+            printf("\033[0;33m");
+			printf("%s:%d - %s",inet_ntoa(aC.sin_addr),ntohs(aC.sin_port),buffer);
+            printf("\033[0m");
 		}
 		memset(buffer,0,sizeof(char)*256);
+        break;
 	}
 
     /* Close connexion */
-    close (dSC);
     close (dS);
     printf("Stop server\n");
 
