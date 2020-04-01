@@ -45,8 +45,7 @@ int main(int argc, char *argv[]){
 
     /* Ask and send the message */
     printf("Enter your message : ");
-    scanf("%s",buffer);
-    //printf("%ld", strlen(buffer));
+    fgets(buffer,256,stdin);
     send(dS, buffer, strlen(buffer), 0);
 
     /* Close connexion */
