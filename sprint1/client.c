@@ -13,30 +13,32 @@
 * Run the program : gcc -o client client.c && ./client TARGET_IP PORT
 */
 
-void *sendMsg(int dS){
+void *sendMsg(void* dS){
     char buffer[256];
+    int* arg = dS;
     int sd;
     while(1){
         printf("Send your message :\n");
         fgets(buffer,256,stdin);
-        sd=send(dS,&buffer,strlen(buffer),0);
+        sd=send(*arg,&buffer,strlen(buffer),0);
         if(sd<0){
             perror("Error to send the message.");
             exit(0);
         } 
         if(strcmp(buffer,"fin") == 0){
             printf("End of the communication ...\n");
-            close(dS);
+            close(*arg);
             exit(0);
         }
     }
 }
 
-void *recvMsg(int dS){
+void *recvMsg(void* dS){
     char buffer[256];
+    int* arg = dS;
     int rc;
     while(1){
-        rc = recv(dS, &buffer, 256, 0);
+        rc = recv(*arg, &buffer, 256, 0);
         if(rc < 0){
             perror("Error to receive the message.");
             exit(0);
@@ -44,7 +46,7 @@ void *recvMsg(int dS){
         printf("Message receive : %s\n",buffer);
         if(strcmp(buffer,"fin") == 0){
             printf("End of the communication ...\n");
-            close(dS);
+            close(*arg);
             exit(0);
         }
     }
@@ -105,8 +107,8 @@ int main(int argc, char *argv[]){
     pthread_t sdM;
     pthread_t rcM;       
 
-    pthread_create(&sdM,0,sendMsg,dS);
-    pthread_create(&rcM,0,recvMsg,dS);
+    pthread_create(&sdM,0,sendMsg,&dS);
+    pthread_create(&rcM,0,recvMsg,&dS);
 
     pthread_join(sdM,0);
     pthread_join(rcM,0);
