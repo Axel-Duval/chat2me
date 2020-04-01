@@ -131,18 +131,14 @@ int main(int argc, char *argv[]){
     socklen_t lg2 = sizeof(struct sockaddr_in);
 
 
-    /* Accept the connexion from client 1 */
-    int socketCli1;
-    while(socketCli1 = accept(dS, (struct sockaddr*)&addrCli1,&lg1) < 0){
-        /* Acceptation error */
+    /* Accept the connexion from client 2 */
+    int socketCli1 = accept(dS, (struct sockaddr*)&addrCli1,&lg1);
+    if(socketCli1 > 0){
+        printf("\033[0;32mConnexion established with our first client : %s:%d \033[0m\n",inet_ntoa(addrCli1.sin_addr),ntohs(addrCli1.sin_port));
     }
-    printf("\033[0;32mConnexion established with our first client : %s:%d \033[0m\n",inet_ntoa(addrCli1.sin_addr),ntohs(addrCli1.sin_port));
-    while(tmp = send(socketCli1,&confirm, sizeof(confirm),0) < 0){
-        /* Error sending message to client 1 */
-        if(tmp == 0){
-            /* Because of connexion lost with client 1, need to stop the program */
-            exit(1);
-        }
+    tmp = send(socketCli1,&confirm, sizeof(confirm),0);
+    if(tmp < 0){
+        printf("! Error sending confirmation to first client !\n");
     }
 
     /* Accept the connexion from client 2 */

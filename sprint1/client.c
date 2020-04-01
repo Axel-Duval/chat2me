@@ -18,7 +18,7 @@ void *sendMsg(void* dS){
     int* arg = dS;
     int sd;
     while(1){
-        printf("Send your message :\n");
+        printf("Send your message : ");
         fgets(buffer,256,stdin);
         sd=send(*arg,&buffer,strlen(buffer),0);
         if(sd<0){
@@ -43,7 +43,7 @@ void *recvMsg(void* dS){
             perror("Error to receive the message.");
             exit(0);
         }
-        printf("Message receive : %s\n",buffer);
+        printf("\nMessage receive : %s\n",buffer);
         if(strcmp(buffer,"fin") == 0){
             printf("End of the communication ...\n");
             close(*arg);
@@ -74,7 +74,10 @@ int main(int argc, char *argv[]){
 
     /* Create stream socket with IPv4 domain and IP protocol */
     int dS= socket(PF_INET, SOCK_STREAM, 0);
-    printf("Socket created !\n");
+    if(dS == -1){
+		perror("! Issue whith socket creation !\n");
+		exit(1);
+	}
 
     /* Open connexion */
     int con = connect(dS, (struct sockaddr *) &aS, lgA);
@@ -96,7 +99,7 @@ int main(int argc, char *argv[]){
         if (rc<0) {
             perror("Problem with the reception");
         } else {
-            printf("%s\n", buffer);
+            printf("\033[0;32m%s\033[0m\n", buffer);
             memset(buffer,0,sizeof(char)*256);
         }
     }
