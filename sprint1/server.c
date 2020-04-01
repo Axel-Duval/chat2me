@@ -13,27 +13,78 @@
 * Run the program : gcc -o server server.c && ./server PORT
 */
 
+
+/* Create struct to share sockets with threads */
 struct sockets_struct
 {
     int socket1;
     int socket2;
 };
-
 struct sockets_struct sockets;
 
+/* Create thread 1 wich wait for client 1 message and send it to client 2 */
 void *thread_1(void *arg){
-    struct sockets_struct *args = (void *)arg;
-    int socket1 = args->socket1;
-    int socket2 = args->socket2;
-    printf("Nous sommes dans le thread 1.\n");
+    while(1){        
+        /* Get sockets */
+        struct sockets_struct *args = (void *)arg;
+        int socket1 = args->socket1;
+        int socket2 = args->socket2;
+
+        /* Create buffer for messages */
+        char buffer[256];
+        memset(buffer, 0, sizeof(buffer));
+
+        /* Waiting for message from client 1 */
+        int rv = recv(socket1, &buffer, sizeof(buffer), 0);
+        if(rv == 0){
+            /* Connexion lost with client 1 */
+            break;    
+        }
+        else if(rv > 0){
+            /* Message valid in the buffer */
+            int sd;
+            while(sd = send(socket2,&buffer, sizeof(buffer),0) <= 0){
+                /* Error sending message to client 2 */
+                if(sd == 0){
+                    /* Because of connexion lost with client 2 */
+                    break;
+                }
+            }
+        }
+    }
     pthread_exit(NULL);
 }
 
+/* Create thread 2 wich wait for client 2 message and send it to client 1 */
 void *thread_2(void *arg){
-    struct sockets_struct *args = (void *)arg;
-    int socket1 = args->socket1;
-    int socket2 = args->socket2;
-    printf("Nous sommes dans le thread 2.\n");
+    while(1){        
+        /* Get sockets */
+        struct sockets_struct *args = (void *)arg;
+        int socket1 = args->socket1;
+        int socket2 = args->socket2;
+
+        /* Create buffer for messages */
+        char buffer[256];
+        memset(buffer, 0, sizeof(buffer));
+
+        /* Waiting for message from client 2 */
+        int rv = recv(socket2, &buffer, sizeof(buffer), 0);
+        if(rv == 0){
+            /* Connexion lost with client 2 */
+            break;    
+        }
+        else if(rv > 0){
+            /* Message valid in the buffer */
+            int sd;
+            while(sd = send(socket1,&buffer, sizeof(buffer),0) <= 0){
+                /* Error sending message to client 1 */
+                if(sd == 0){
+                    /* Because of connexion lost with client 1 */
+                    break;
+                }
+            }
+        }
+    }
     pthread_exit(NULL);
 }
 
@@ -44,10 +95,6 @@ int main(int argc, char *argv[]){
 		printf("! I need to be call like : program PORT !\n");
 		exit(1);
 	}
-
-    /* Create buffer for messages */
-    char buffer[256];
-    memset(buffer,0,sizeof(buffer));
 
     /* Define target (ip:port) with calling program parameters */
     struct sockaddr_in ad;
