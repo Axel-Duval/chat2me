@@ -10,49 +10,58 @@
 
 /**
 * This version allows a client to send a message
-* Run the program : gcc -o client client.c && ./client TARGET_IP PORT
+* Run the program : gcc -o client client.c && ./client TARGET_IP PORT -lpthread
 */
 
 void *sendMsg(void* dS){
-    char buffer[256];
+    /* Get server's socket */
     int* arg = dS;
+    char buffer[256];
     int sd;
     while(1){
+
+        /* Get the message to send */
         printf("Send your message :\n");
         fgets(buffer,256,stdin);
-        sd=send(*arg,&buffer,strlen(buffer),0);
-        if(sd<0){
-            perror("Error to send the message.");
-            exit(0);
-        }
+
+        /* Check if it's the end of communication */
         char *chfin = strchr(buffer, '\n');
         *chfin = '\0';
         if(strcmp(buffer,"fin") == 0){
             printf("End of the communication ...\n");
-            close(*arg);
-            exit(0);
+            break;
+        }
+
+        /* Send the message */
+        int sd;
+        while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
+           if(sd == 0){
+                /* Connexion lost */
+                break;
+           }
         }
     }
+    pthread_exit(NULL);
 }
 
 void *recvMsg(void* dS){
-    char buffer[256];
+    /* Get server's socket */
     int* arg = dS;
+    char buffer[256];    
     int rc;
     while(1){
-        rc = recv(*arg, &buffer, 256, 0);
-        if(rc < 0){
-            perror("Error to receive the message.");
-            exit(0);
+
+        /* Recieve the message */
+        int rc;
+        while(rc = recv(*arg, &buffer, sizeof(buffer), 0) <= 0){
+           if(rc == 0){
+                /* Connexion lost */
+                break;
+           }
         }
+
+        /* Print the message */
         printf("Message receive : %s\n",buffer);
-        char *chfin = strchr(buffer, '\n');
-        *chfin = '\0';
-        if(strcmp(buffer,"fin") == 0){
-            printf("End of the communication ...\n");
-            close(*arg);
-            exit(0);
-        }
     }
 }
 
@@ -61,7 +70,7 @@ int main(int argc, char *argv[]){
 
     /* Checking args */
     if(argc != 3){
-        printf("! I need to be call like : program TARGET_IP PORT !\n");
+        printf("! I need to be call like -> :program TARGET_IP PORT -lpthread !\n");
         exit(1);
     }
 
@@ -84,8 +93,8 @@ int main(int argc, char *argv[]){
 	}
 
     /* Open connexion */
-    int con = connect(dS, (struct sockaddr *) &aS, lgA);
-    if(con < 0){
+    int connexion = connect(dS, (struct sockaddr *) &aS, lgA);
+    if(connexion < 0){
         printf("! Can't find the target !\n");
         exit(1);
     }
@@ -108,22 +117,18 @@ int main(int argc, char *argv[]){
         }
     }
 
-    /*Now they can communicate*/
     
-
+    
+    /* Create 2 threads for recieve and send messages */
     pthread_t sdM;
-    pthread_t rcM;       
-
+    pthread_t rcM;
     pthread_create(&sdM,0,sendMsg,&dS);
     pthread_create(&rcM,0,recvMsg,&dS);
 
-    pthread_join(sdM,0);
-    pthread_join(rcM,0);
-    
-   
+    /* Waiting for the end of communication (fin) to finish the program */
+    pthread_join(sdM,0);  
 
     /* Close connexion */
     close(dS);
-
     return 1;
 }
