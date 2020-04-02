@@ -18,6 +18,14 @@
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
 
+/* Create struct to share socket with username to threads */
+struct sockets_struct
+{
+    char* username;
+    int socket;
+};
+struct sockets_struct clientStruct;
+
 
 /* Print socket state */
 void psockets(){
@@ -67,11 +75,14 @@ int remove_socket(int sockets[], int socket){
 /* Create thread wich wait for client message and send it to all others clients */
 void *thread_func(void *arg){
 
-    /* Get client socket */
-    int socketCli = *(int *)arg;
+    /* Get client username and socket */
+    struct sockets_struct *args = (void *)arg;
+    char* username = args->username;
+    int socketCli = args->socket;
 
     /* Create buffer for messages */
     char buffer[256];
+    char* message;
 
     /* Define some int */
     int rv;
@@ -80,7 +91,7 @@ void *thread_func(void *arg){
 
     while(1){        
         /* Clean the buffer */
-        memset(buffer, 0, sizeof(buffer));       
+        memset(buffer, 0, sizeof(buffer));
 
         /* Waiting for message from client */
         rv = recv(socketCli, &buffer, sizeof(buffer), 0);
@@ -90,12 +101,18 @@ void *thread_func(void *arg){
             break;
         }
         else if(rv > 0){
-            /* Valid reception, now send messages to other clients */
+            
+            char joiner[3] = " - ";
+            char message[279];
+
+            strcpy(message, username);
+            strcat(message, joiner);
+
             for(i = 0; i < MAX_SOCKETS; i++){
                 /* Only send on valid sockets and not to our client socket... */
                 if(sockets[i] != 0 && sockets[i] != socketCli){
                     /* Send message to client [i] */
-                    while(sd = send(sockets[i],&buffer, sizeof(buffer),0) <= 0){
+                    while(sd = send(sockets[i], &message, strlen(message),0) <= 0){
                         /* Error sending message to client [i] */
                         if(sd == 0){
                             /* Because of connexion lost with client [i] need to remove his socket */
@@ -121,10 +138,10 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
-    /* Define some constants */
+    /* Define some variables */
     int tmp;
-    char confirm[20] = "You are connected...";
-    char messageConfirmation[20] = "You can now chat !";
+    char username[20];
+    int rc;
 
     /* Define target (ip:port) with calling program parameters */
     struct sockaddr_in ad;
@@ -148,6 +165,9 @@ int main(int argc, char *argv[]){
 
     while(1){
 
+        /* Clean username buffer */
+        memset(username, 0, sizeof(username));
+
         /* Create addr for a clients */
         struct sockaddr_in addrCli;
         socklen_t lg = sizeof(struct sockaddr_in);
@@ -158,12 +178,22 @@ int main(int argc, char *argv[]){
         if(socketCli > 0){
             printf("\033[0;32mConnexion established with client : %s:%d \033[0m\n",inet_ntoa(addrCli.sin_addr),ntohs(addrCli.sin_port));
 
+            /* Waiting for the username */
+            while(rc = recv(socketCli, &username, sizeof(username), 0) < 0){
+                /* Error getting username, retry to recieve */                
+            }
+
             /* Add this new client to sockets tab */
             if(add_socket(sockets,socketCli) != -1){
                 psockets();
+
+                /* Bind socket and username to structure */
+                clientStruct.username = "Replace me"; //:username (but username doesn't work...)
+                clientStruct.socket = socketCli;
+
                 /* Create thread */
                 pthread_t thread;
-                pthread_create(&thread, NULL, thread_func, (void *)&socketCli);
+                pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
             }
         }        
     }

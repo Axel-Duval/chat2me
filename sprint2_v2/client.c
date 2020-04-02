@@ -46,21 +46,19 @@ void *sendMsg(void* dS){
 void *recvMsg(void* dS){
     /* Get server's socket */
     int* arg = dS;
-    char buffer[256];    
+    char buffer[256];
     int rc;
     while(1){
 
         /* Recieve the message */
-        int rc;
         while(rc = recv(*arg, &buffer, sizeof(buffer), 0) <= 0){
            if(rc == 0){
                 /* Connexion lost */
                 break;
            }
         }
-
         /* Print the message */
-        printf("- %s\n",buffer);
+        printf("%s\n", buffer);
     }
 }
 
@@ -73,6 +71,11 @@ int main(int argc, char *argv[]){
         exit(1);
     }
 
+    /* Ask for username */
+    char username[20];
+    printf("Choose your username : ");
+    fgets(username,20,stdin);
+
     /* Define target (ip:port) with calling program parameters */
     struct sockaddr_in aS ;
     aS.sin_family = AF_INET;
@@ -81,7 +84,7 @@ int main(int argc, char *argv[]){
     socklen_t lgA = sizeof(struct sockaddr_in);
 
     /* Create stream socket with IPv4 domain and IP protocol */
-    int dS= socket(PF_INET, SOCK_STREAM, 0);
+    int dS = socket(PF_INET, SOCK_STREAM, 0);
     if(dS == -1){
 		perror("! Issue whith socket creation !\n");
 		exit(1);
@@ -92,8 +95,16 @@ int main(int argc, char *argv[]){
     if(connexion < 0){
         perror("! Can't find the target !\n");
         exit(1);
-    }
+    }    
 
+    /* Send username to the server */
+    int sd;
+    while(sd = send(dS,&username,strlen(username),0) <= strlen(username)-1){
+        if(sd == 0){
+            /* Connexion lost */
+            exit(1);
+        }
+    }
     
     /* Create 2 threads for recieve and send messages */
     pthread_t sdM;
