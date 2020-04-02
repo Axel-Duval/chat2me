@@ -21,7 +21,6 @@ void *sendMsg(void* dS){
     while(1){
 
         /* Get the message to send */
-        printf("Send your message :\n");
         fgets(buffer,256,stdin);
 
         /* Check if it's the end of communication */
@@ -61,7 +60,7 @@ void *recvMsg(void* dS){
         }
 
         /* Print the message */
-        printf("Message receive : %s\n",buffer);
+        printf("- %s\n",buffer);
     }
 }
 
@@ -95,7 +94,7 @@ int main(int argc, char *argv[]){
     /* Open connexion */
     int connexion = connect(dS, (struct sockaddr *) &aS, lgA);
     if(connexion < 0){
-        printf("! Can't find the target !\n");
+        perror("! Can't find the target !\n");
         exit(1);
     }
 

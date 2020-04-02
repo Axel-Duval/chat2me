@@ -94,7 +94,7 @@ int main(int argc, char *argv[]){
 
     /* Checking args */
     if(argc != 2){
-		printf("! I need to be call like -> :program PORT -lpthread !\n");
+		perror("! I need to be call like -> :program PORT -lpthread !\n");
 		exit(1);
 	}
 
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]){
     /* Create stream socket with IPv4 domain and IP protocol */
 	int dS = socket(PF_INET,SOCK_STREAM,0);
     if(dS == -1){
-		printf("! Issue whith socket creation !\n");
+		perror("! Issue whith socket creation !\n");
 		exit(1);
 	}
     printf("Socket created !\n");
@@ -140,7 +140,7 @@ int main(int argc, char *argv[]){
     }
     tmp = send(socketCli1,&confirm, sizeof(confirm),0);
     if(tmp < 0){
-        printf("! Error sending confirmation to first client !\n");
+        perror("! Error sending confirmation to first client !\n");
     }
 
     /* Accept the connexion from client 2 */
@@ -150,15 +150,15 @@ int main(int argc, char *argv[]){
     }
     tmp = send(socketCli2,&confirm, sizeof(confirm),0);
     if(tmp < 0){
-        printf("! Error sending confirmation to second client !\n");
+        perror("! Error sending confirmation to second client !\n");
     }
 
     /* Sending start signal to clients */
     while(tmp = send(socketCli1,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
-        printf("! Error sending chat start\n");
+        perror("! Error sending chat start\n");
     }
     while(tmp = send(socketCli2,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
-        printf("! Error sending chat start\n");
+        perror("! Error sending chat start\n");
     }
 
     /* Bind sockets on structure */
