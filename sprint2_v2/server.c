@@ -14,6 +14,8 @@
 */
 
 #define MAX_SOCKETS 10
+#define MAX_USERNAME_LENGTH 20
+#define MAX_BUFFER_LENGTH 256
 
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
@@ -21,7 +23,7 @@ int sockets[MAX_SOCKETS] = {0};
 /* Create struct to share socket with username to threads */
 struct sockets_struct
 {
-    char* username;
+    char clientUsername[MAX_USERNAME_LENGTH];
     int socket;
 };
 struct sockets_struct clientStruct;
@@ -77,21 +79,25 @@ void *thread_func(void *arg){
 
     /* Get client username and socket */
     struct sockets_struct *args = (void *)arg;
-    char* username = args->username;
+    char username[MAX_USERNAME_LENGTH];
+    strcpy(username,args->clientUsername);
     int socketCli = args->socket;
 
     /* Create buffer for messages */
-    char buffer[256];
-    char* message;
+    char buffer[MAX_BUFFER_LENGTH];
+    char joiner[4];
+    strcpy(joiner," - ");
+    char message[MAX_BUFFER_LENGTH + 4 + MAX_USERNAME_LENGTH];
 
     /* Define some int */
     int rv;
     int sd;
     int i;
 
-    while(1){        
+    while(1){
         /* Clean the buffer */
         memset(buffer, 0, sizeof(buffer));
+        memset(message, 0, sizeof(message));
 
         /* Waiting for message from client */
         rv = recv(socketCli, &buffer, sizeof(buffer), 0);
@@ -101,18 +107,16 @@ void *thread_func(void *arg){
             break;
         }
         else if(rv > 0){
-            
-            char joiner[3] = " - ";
-            char message[279];
 
-            strcpy(message, username);
-            strcat(message, joiner);
+            strcat(message,username);
+            strcat(message,joiner);
+            strcat(message,buffer);
 
             for(i = 0; i < MAX_SOCKETS; i++){
                 /* Only send on valid sockets and not to our client socket... */
                 if(sockets[i] != 0 && sockets[i] != socketCli){
                     /* Send message to client [i] */
-                    while(sd = send(sockets[i], &message, strlen(message),0) <= 0){
+                    while(sd = send(sockets[i], message, sizeof(message),0) <= 0){
                         /* Error sending message to client [i] */
                         if(sd == 0){
                             /* Because of connexion lost with client [i] need to remove his socket */
@@ -140,7 +144,7 @@ int main(int argc, char *argv[]){
 
     /* Define some variables */
     int tmp;
-    char username[20];
+    char username[MAX_USERNAME_LENGTH];
     int rc;
 
     /* Define target (ip:port) with calling program parameters */
@@ -188,14 +192,14 @@ int main(int argc, char *argv[]){
                 psockets();
 
                 /* Bind socket and username to structure */
-                clientStruct.username = "Replace me"; //:username (but username doesn't work...)
+                strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
                 clientStruct.socket = socketCli;
 
                 /* Create thread */
                 pthread_t thread;
                 pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
             }
-        }        
+        }
     }
 
     /* Close connexion */

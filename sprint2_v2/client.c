@@ -13,15 +13,20 @@
 * Run the program : gcc -o client client.c && ./client TARGET_IP PORT -lpthread
 */
 
+#define MAX_USERNAME_LENGTH 20
+#define MAX_BUFFER_LENGTH 256
+
 void *sendMsg(void* dS){
     /* Get server's socket */
     int* arg = dS;
-    char buffer[256];
+    char buffer[MAX_BUFFER_LENGTH];
     int sd;
     while(1){
-
+        /* Clean the buffer */
+        memset(buffer, 0, strlen(buffer));
+        
         /* Get the message to send */
-        fgets(buffer,256,stdin);
+        fgets(buffer, MAX_BUFFER_LENGTH, stdin);
 
         /* Check if it's the end of communication */
         char *chfin = strchr(buffer, '\n');
@@ -46,9 +51,11 @@ void *sendMsg(void* dS){
 void *recvMsg(void* dS){
     /* Get server's socket */
     int* arg = dS;
-    char buffer[256];
+    char buffer[MAX_BUFFER_LENGTH + 4 + MAX_USERNAME_LENGTH];
     int rc;
     while(1){
+        /* Clean the buffer */
+        memset(buffer, 0, strlen(buffer));
 
         /* Recieve the message */
         while(rc = recv(*arg, &buffer, sizeof(buffer), 0) <= 0){
@@ -72,15 +79,15 @@ int main(int argc, char *argv[]){
     }
 
     /* Ask for username */
-    char username[20];
+    char username[MAX_USERNAME_LENGTH];
     printf("Choose your username : ");
-    fgets(username,20,stdin);
+    fgets(username, MAX_USERNAME_LENGTH, stdin);
 
     /* Define target (ip:port) with calling program parameters */
     struct sockaddr_in aS ;
     aS.sin_family = AF_INET;
     aS.sin_port = htons(atoi(argv[2])) ;
-    inet_pton(AF_INET,argv[1],&(aS.sin_addr));    
+    inet_pton(AF_INET,argv[1],&(aS.sin_addr));
     socklen_t lgA = sizeof(struct sockaddr_in);
 
     /* Create stream socket with IPv4 domain and IP protocol */
@@ -99,7 +106,7 @@ int main(int argc, char *argv[]){
 
     /* Send username to the server */
     int sd;
-    while(sd = send(dS,&username,strlen(username),0) <= strlen(username)-1){
+    while(sd = send(dS,&username,strlen(username)-1,0) <= strlen(username)-2){
         if(sd == 0){
             /* Connexion lost */
             exit(1);
@@ -112,7 +119,7 @@ int main(int argc, char *argv[]){
     pthread_create(&sdM,0,sendMsg,&dS);
     pthread_create(&rcM,0,recvMsg,&dS);
 
-    /* Waiting for the end of communication (fin) to finish the program */
+    /* Waiting for the end of communication to finish the program */
     pthread_join(sdM,0);  
 
     /* Close connexion */
