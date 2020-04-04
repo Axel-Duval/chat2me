@@ -16,6 +16,8 @@
 #define MAX_SOCKETS 10
 #define MAX_USERNAME_LENGTH 20
 #define MAX_BUFFER_LENGTH 256
+#define JOINER_LENGTH 4
+#define JOINER " - "
 
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
@@ -85,8 +87,8 @@ void *thread_func(void *arg){
 
     /* Create buffer for messages */
     char buffer[MAX_BUFFER_LENGTH];
-    char joiner[4];
-    strcpy(joiner," - ");
+    char joiner[JOINER_LENGTH];
+    strcpy(joiner,JOINER);
     char message[MAX_BUFFER_LENGTH + 4 + MAX_USERNAME_LENGTH];
 
     /* Define some int */
@@ -138,7 +140,7 @@ int main(int argc, char *argv[]){
 
     /* Checking args */
     if(argc != 2){
-		perror("! I need to be call like -> :program PORT -lpthread !\n");
+		perror("! I need to be call like -> :program PORT !\n");
 		exit(1);
 	}
 
@@ -164,7 +166,7 @@ int main(int argc, char *argv[]){
     bind(dS,(struct sockaddr*)&ad,sizeof(ad));
 
     /* Starting the server */
-    listen(dS,10);
+    listen(dS,MAX_SOCKETS);
     printf("Start server on port : %s\n", argv[1]);
 
     while(1){

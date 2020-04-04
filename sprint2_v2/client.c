@@ -10,11 +10,12 @@
 
 /**
 * This version allows a client to send a message
-* Run the program : gcc -o client client.c && ./client TARGET_IP PORT -lpthread
+* Run the program : gcc -o client client.c -lpthread && ./client TARGET_IP PORT
 */
 
 #define MAX_USERNAME_LENGTH 20
 #define MAX_BUFFER_LENGTH 256
+#define JOINER_LENGTH 4
 
 void *sendMsg(void* dS){
     /* Get server's socket */
@@ -51,7 +52,7 @@ void *sendMsg(void* dS){
 void *recvMsg(void* dS){
     /* Get server's socket */
     int* arg = dS;
-    char buffer[MAX_BUFFER_LENGTH + 4 + MAX_USERNAME_LENGTH];
+    char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_USERNAME_LENGTH];
     int rc;
     while(1){
         /* Clean the buffer */
@@ -74,7 +75,7 @@ int main(int argc, char *argv[]){
 
     /* Checking args */
     if(argc != 3){
-        printf("! I need to be call like -> :program TARGET_IP PORT -lpthread !\n");
+        printf("! I need to be call like -> :program SERVER_IP PORT !\n");
         exit(1);
     }
 

@@ -13,6 +13,7 @@
 * Run the program : gcc -o server server.c && ./server PORT
 */
 
+#define MAX_BUFFER_LENGTH 256
 
 /* Create struct to share sockets with threads */
 struct sockets_struct
@@ -31,8 +32,8 @@ void *thread_1(void *arg){
         int socket2 = args->socket2;
 
         /* Create buffer for messages */
-        char buffer[256];
-        memset(buffer, 0, sizeof(buffer));
+        char buffer[MAX_BUFFER_LENGTH];
+        memset(buffer, 0, strlen(buffer));
 
         /* Waiting for message from client 1 */
         int rv = recv(socket1, &buffer, sizeof(buffer), 0);
@@ -64,7 +65,7 @@ void *thread_2(void *arg){
         int socket2 = args->socket2;
 
         /* Create buffer for messages */
-        char buffer[256];
+        char buffer[MAX_BUFFER_LENGTH];
         memset(buffer, 0, sizeof(buffer));
 
         /* Waiting for message from client 2 */
