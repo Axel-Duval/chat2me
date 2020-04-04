@@ -7,17 +7,20 @@ An instant messaging application made in C by :
 Project proposed by Polytech Montpellier in 2020.
 
 #### Sprint 1
-Un serveur relaie des messages textuels entre deux clients
+A server relays text messages between two clients
 
 #### Sprint 2
-Un serveur et un client multi-threadés
+A multi-threaded server and two multi-threaded clients 
+
+#### Sprint 2 v2
+A multi-threaded server and severals clients with usernames which can join or quit the conversation
 
 #### Sprint 3
 Files transfert
 
 #### Sprint 4
-Gestion de chaînes (salons) de discussion
+Management of discussion channels
 
 ## Sprint 5
- Interface Web pour la saisie et l’affichage des messages, avec envoi « instantané »
+Web interface for entering and displaying messages, with "instant" sending
 
