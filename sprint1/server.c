@@ -69,21 +69,21 @@ int main(int argc, char *argv[])
         if (socketCli1 < 0){
             perror("! Error socketCli1 creation !");
         }
-        printf("\n\033[0;32mConnexion established with our first client\033[0m");
-
-        /* socketCli2 */
-        socketCli2 = accept(dS, (struct sockaddr *)&addrCli2, &lg2);
-        if (socketCli2 < 0){
-            perror("! Error socketCli1 creation !");
-        }
-        printf("\n\033[0;32mConnexion established with our second client\033[0m");
+        printf("\033[0;32mConnexion established with our first client\n\033[0m");
 
         /* Sending the number to the client 1*/
         numClient = "1";
         numC = send(socketCli1, numClient, sizeof(char), 0);
         if (numC < 0){
             printf("! Error sending the number to first client !\n");
-        }        
+        }
+
+        /* socketCli2 */
+        socketCli2 = accept(dS, (struct sockaddr *)&addrCli2, &lg2);
+        if (socketCli2 < 0){
+            perror("! Error socketCli1 creation !");
+        }
+        printf("\033[0;32mConnexion established with our second client\n\033[0m");   
 
         /* Sending the number to the client 2*/
         numClient = "2";
