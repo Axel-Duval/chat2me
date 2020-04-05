@@ -73,14 +73,6 @@ int main(int argc, char *argv[])
             perror("! Error socketCli1 creation !");
         }
 
-        /* Sending the number to the client 1*/
-        numClient = "1";
-        numC = send(socketCli1, numClient, sizeof(char), 0);
-        if (numC < 0)
-        {
-            printf("! Error sending the number to first client !\n");
-        }
-
         /* socketCli2 */
         socketCli2 = accept(dS, (struct sockaddr *)&addrCli2, &lg2);
         if (socketCli2 > 0){
@@ -90,6 +82,15 @@ int main(int argc, char *argv[])
         {
             perror("! Error socketCli1 creation !");
         }
+
+        /* Sending the number to the client 1*/
+        numClient = "1";
+        numC = send(socketCli1, numClient, sizeof(char), 0);
+        if (numC < 0)
+        {
+            printf("! Error sending the number to first client !\n");
+        }        
+
         /* Sending the number to the client 2*/
         numClient = "2";
         numC = send(socketCli2, numClient, sizeof(char), 0);
