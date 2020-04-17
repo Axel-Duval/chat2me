@@ -16,149 +16,137 @@
 
 int main(int argc, char *argv[])
 {
-
     /* Checking args */
     if (argc != 3){
         printf("! I need to be call like : program TARGET_IP PORT !\n");
         exit(1);
     }
-
-    /* Create buffer for initialization messages */
-    char buffer[MAX_BUFFER_LENGTH];
-    memset(buffer, 0, strlen(buffer));
-
+    
     /* Define target (ip:port) with calling program parameters */
     struct sockaddr_in aS;
     aS.sin_family = AF_INET;
     aS.sin_port = htons(atoi(argv[2]));
-    inet_pton(AF_INET, argv[1], &(aS.sin_addr));
-    socklen_t lgA = sizeof(struct sockaddr_in);
+
+    inet_pton(AF_INET, argv[1], &(aS.sin_addr)); 
+    socklen_t lgA = sizeof(struct sockaddr_in); 
 
     /* Create stream socket with IPv4 domain and IP protocol */
     int dS = socket(PF_INET, SOCK_STREAM, 0);
-    if(dS == -1){
-		perror("! Issue whith socket creation !\n");
-		exit(1);
-	}
+    if (dS < 0){
+        perror("! Issue whith socket creation !");
+        return 1;
+    }
 
     /* Open connexion */
-    int con = connect(dS, (struct sockaddr *)&aS, lgA);
-    if (con < 0)
-    {
-        perror("! Can't find the target !\n");
-        exit(1);
+    int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+
+    if (con<0){
+        perror("! Can't find the target !");
+        return 1;
     }
 
     /* Waiting the message from the server */
     int numClient;
-    int rc = recv(dS, &buffer, sizeof(buffer), 0);
-    if (rc < 0){
-        perror("! Problem with the reception of num client !");
+    int rc = recv(dS, &numClient, sizeof(numClient), 0);
+    if (rc<0){
+        perror ("! Problem with the reception of num client !");
+        return 1;
     }
-    else{
-        numClient = atoi(buffer);
-        printf("You are client n°%d\n", numClient);
-        memset(buffer, 0, strlen(buffer));
-
-        /* Blocking function until the 2nd connection */
-        rc = recv(dS, &buffer, sizeof(buffer), 0);
-        if (rc < 0){
-            perror("! Problem with the reception of the starting message !");
-        }
-        else{
-            printf("%s\n", buffer);
-            memset(buffer, 0, strlen(buffer));
-        }
-    }
-
-    /* Now they can communicate */
-
-    /* Define some variables */
-    char msg1[MAX_BUFFER_LENGTH];
-    char msg2[MAX_BUFFER_LENGTH];
-    int rcv;
-    int sd;
-    int cmp;
 
     /* client 1 */
-    if (numClient == 1){
-        while (1){
+    if(numClient == 1){
+        printf("You are client n°1. Waiting for client 2... \n");
+        //Attendre 2ème client
+        char msgConfirmation[MAX_BUFFER_LENGTH];
+        int rc = recv(dS, &msgConfirmation, MAX_BUFFER_LENGTH, 0);
+        if (rc<0){
+            perror("! Problem with the reception of the starting message !");
+            return 1;
+        } else {
+            printf("%s\n", msgConfirmation);
+        }
 
-            /* client 1 sends a new message to the server */
-            printf("\nYou : ");
-            fgets(msg1, MAX_BUFFER_LENGTH, stdin);
-            char *chfin = strchr(msg1, '\n');
-            *chfin = '\0';
-            sd = send(dS, msg1, strlen(msg1), 0);
-            if (sd < 0){
+        /* Now they can communicate */
+
+        while(1){
+            
+            /* client 1 sends a new message to the server */ 
+            char buffer[MAX_BUFFER_LENGTH]; 
+            printf("You : ");
+            fgets(buffer,MAX_BUFFER_LENGTH,stdin);
+            *strchr(buffer, '\n') = '\0';
+            int sd = send(dS,&buffer,strlen(buffer),0);
+            if (sd<0){
                 perror("! Problem with the message sending !");
+                return 1;
             }
-            else{
-                cmp = strcmp(msg1, "fin");
-                if (cmp == 0){
-                    printf("\nYou completed the communication\n");
-                    break;
-                }
-                memset(msg1, 0, strlen(msg1));
+
+            if(strcmp(buffer, "fin") == 0){
+                printf("You completed the communication\n");
+                close(dS);
+                return 0;
             }
 
             /* client 1 receives the message from the server */
-            rcv = recv(dS, &msg2, sizeof(msg2), 0);
-            if (rcv < 0){
-                perror("! Problem with the message reception !");
+            char msg2[MAX_BUFFER_LENGTH];
+            rc = recv(dS, &msg2, MAX_BUFFER_LENGTH, 0);
+            if (rc<0){
+                perror ("! Problem with the message reception !");
+                return 1;
             }
-            else{
-                cmp = strcmp(msg2, "fin");
-                if (cmp == 0)
-                {
-                    printf("\nClient 2 completed the communication\n");
-                    break;
-                }
-                printf("\nClient 2: %s", msg2);
-                memset(msg2, 0, strlen(msg2));
+
+            printf("Client 2 : %s\n", msg2);
+
+            if(strcmp(msg2, "fin") == 0){
+                printf("Client 2 completed the communication\n");
+                close(dS);
+                return 0;
             }
         }
-    }
+        close(dS);
+    } 
+
     /* client 2 */
-    else{
-        while (1){
-            /* client 2 receives the message from the server */
-            rcv = recv(dS, &msg1, sizeof(msg1), 0);
-            if (rcv < 0){
-                perror("! Problem with the message reception !");
+    else if (numClient == 2){
+        printf("%s\n", "You are client 2.");
+        while(1){
+            /* client 2 receives the message from the server */ 
+            char msg1[MAX_BUFFER_LENGTH]; 
+            int rc = recv(dS, &msg1, MAX_BUFFER_LENGTH, 0);
+
+            if (rc<0){
+                perror ("! Problem with the message reception !");
+                return 1;
             }
-            else{
-                cmp = strcmp(msg1, "fin");
-                if (cmp == 0)
-                {
-                    printf("\nClient 1 completed the communication\n");
-                    break;
-                }
-                printf("\nClient 1 : %s", msg1);
-                memset(msg1, 0, strlen(msg1));
+
+            printf("Client 1 : %s\n", msg1);
+
+            if(strcmp(msg1, "fin") == 0){
+                printf("Communication fermée\n");
+                close(dS);
+                return 0;
             }
 
             /* client 2 sends a new message to the server */
-            printf("\nYou : ");
-            fgets(msg2, MAX_BUFFER_LENGTH, stdin);
-            char *chfin = strchr(msg2, '\n');
-            *chfin = '\0';
-            sd = send(dS, msg2, strlen(msg2), 0);
-            if (sd < 0){
+            char buffer[MAX_BUFFER_LENGTH]; 
+            printf("You : ");
+            fgets(buffer,MAX_BUFFER_LENGTH,stdin);
+            *strchr(buffer, '\n') = '\0';
+            int sd = send(dS,&buffer,strlen(buffer),0);
+            if (sd<0){
                 perror("! Problem with the message sending !");
+                return 1;
             }
-            else{
-                cmp = strcmp(msg2, "fin");
-                if (cmp == 0){
-                    printf("\nYou completed the communication\n");
-                    break;
-                }
-                memset(msg2, 0, strlen(msg2));
+
+            if(strcmp(buffer, "fin") == 0){
+                printf("You completed the communication\n");
+                close(dS);
+                return 0;
             }
         }
+        close(dS);
+        
     }
     
-    /* Close connexion */
-    close(dS);
-    return 1;
+return 0;
 }

@@ -14,6 +14,45 @@
 
 #define MAX_SOCKETS 10
 #define MAX_BUFFER_LENGTH 256
+#define MAX_USERS 2
+
+int nbUsersConnected = 0;
+int users[MAX_USERS];
+
+void connectUsers(int dS) {
+
+    int socketCli;
+    int sd;
+
+    /* Starting the server */
+    listen(dS, MAX_SOCKETS);
+    printf("Starting server ... \n");
+
+    while(nbUsersConnected < MAX_USERS) {
+
+        /* Create address for clients */
+        struct sockaddr_in addrCli;
+        socklen_t lg = sizeof(struct sockaddr_in);
+        
+        socketCli = accept(dS, (struct sockaddr *)&addrCli, &lg);
+        if (socketCli < 0){
+            perror("! Error socketCli creation !");
+        }
+
+        else {
+            users[nbUsersConnected] = socketCli;
+            nbUsersConnected++;
+            printf("\033[0;32mConnexion established with client %d \n\033[0m", nbUsersConnected);
+
+            /* Sending the number to the client 1*/
+            sd = send(socketCli, &nbUsersConnected, sizeof(int), 0);
+            if (sd < 0){
+                printf("! Error sending the number to client !\n");
+            }
+        }
+    }
+
+}
 
 int main(int argc, char *argv[])
 {
@@ -45,69 +84,33 @@ int main(int argc, char *argv[])
     /* Binding the sockets */
     bind(dS, (struct sockaddr *)&ad, sizeof(ad));
 
-    /* Starting the server */
-    listen(dS, MAX_SOCKETS);
-    printf("Start server on port : %s\n", argv[1]);
-
-    /* Create address for clients */
-    struct sockaddr_in addrCli1;
-    struct sockaddr_in addrCli2;
-    socklen_t lg1 = sizeof(struct sockaddr_in);
-    socklen_t lg2 = sizeof(struct sockaddr_in);
 
     /* Define some variables */
-    int socketCli1;
-    int socketCli2;
-    char *numClient;
-    int numC;
+    
     char messageConfirmation[19] = "You can chat now !";
 
+    /* Define some variables */
+    char msg1[MAX_BUFFER_LENGTH];
+    char msg2[MAX_BUFFER_LENGTH];
+    int rcv;
+    int sd ;
+    int cmp;
+
     while (1){
-        
-        /* socketCli1 */
-        socketCli1 = accept(dS, (struct sockaddr *)&addrCli1, &lg1);
-        if (socketCli1 < 0){
-            perror("! Error socketCli1 creation !");
-        }
-        printf("\033[0;32mConnexion established with our first client\n\033[0m");
 
-        /* Sending the number to the client 1*/
-        numClient = "1";
-        numC = send(socketCli1, numClient, sizeof(char), 0);
-        if (numC < 0){
-            printf("! Error sending the number to first client !\n");
-        }
+        connectUsers(dS);
 
-        /* socketCli2 */
-        socketCli2 = accept(dS, (struct sockaddr *)&addrCli2, &lg2);
-        if (socketCli2 < 0){
-            perror("! Error socketCli1 creation !");
-        }
-        printf("\033[0;32mConnexion established with our second client\n\033[0m");   
-
-        /* Sending the number to the client 2*/
-        numClient = "2";
-        numC = send(socketCli2, numClient, sizeof(char), 0);
-        if (numC < 0){
-            printf("! Error sending the number to first client !\n");
-        }
+        int socketCli1 = users[0];
+        int socketCli2 = users[1];
 
         /* Sending start signal to chat */        
-        while (numC = send(socketCli1, &messageConfirmation, sizeof(messageConfirmation), 0) < 0){
-            printf("! Error sending chat start !\n");
+        sd = send(socketCli1, &messageConfirmation, sizeof(messageConfirmation), 0);
+        if(sd < 0){
+            perror("! Error sending chat start !");
         }
-        while (numC = send(socketCli2, &messageConfirmation, sizeof(messageConfirmation), 0) < 0){
-            printf("! Error sending chat start !\n");
-        }
+
 
         /* Conversation starts */
-
-        /* Define some variables */
-        char msg1[MAX_BUFFER_LENGTH];
-        char msg2[MAX_BUFFER_LENGTH];
-        int rcv;
-        int sd ;
-        int cmp;
 
         while (1){
             
@@ -126,6 +129,7 @@ int main(int argc, char *argv[])
                     cmp = strcmp(msg1, "fin");
                     if (cmp == 0){
                         /* Client 1 completed the communication */
+                        nbUsersConnected--;
                         break;
                     }
                     memset(msg1, 0, strlen(msg1));
@@ -147,6 +151,7 @@ int main(int argc, char *argv[])
                     int cmp = strcmp(msg2, "fin");
                     if (cmp == 0){
                         /* Client 2 completed the communication */
+                        nbUsersConnected--;
                         break;
                     }
                     memset(msg2, 0, strlen(msg2));
