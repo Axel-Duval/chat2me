@@ -79,10 +79,7 @@ void *thread_2(void *arg){
             int sd;
             while(sd = send(socket1,&buffer, sizeof(buffer),0) <= 0){
                 /* Error sending message to client 1 */
-                if(sd == 0){
-                    /* Because of connexion lost with client 1 */
-                    break;
-                }
+                
             }
         }
     }
@@ -158,6 +155,7 @@ int main(int argc, char *argv[]){
     while(tmp = send(socketCli1,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
         perror("! Error sending chat start\n");
     }
+    sleep(1);
     while(tmp = send(socketCli2,&messageConfirmation, sizeof(messageConfirmation),0) < 0){
         perror("! Error sending chat start\n");
     }
