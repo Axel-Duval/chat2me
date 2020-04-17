@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <netdb.h>
 
 /**
 * This version allows a client to send a message to another client
@@ -22,28 +23,76 @@ int main(int argc, char *argv[])
         exit(1);
     }
     
-    /* Define target (ip:port) with calling program parameters */
-    struct sockaddr_in aS;
-    aS.sin_family = AF_INET;
-    aS.sin_port = htons(atoi(argv[2]));
+      struct addrinfo hints, *res, *p;
+      int status;
 
-    inet_pton(AF_INET, argv[1], &(aS.sin_addr)); 
-    socklen_t lgA = sizeof(struct sockaddr_in); 
+      memset(&hints, 0, sizeof hints);
+      hints.ai_family = AF_UNSPEC; // the version of ip addresses isn't specified
+      hints.ai_socktype = SOCK_STREAM; //TCP
 
-    /* Create stream socket with IPv4 domain and IP protocol */
-    int dS = socket(PF_INET, SOCK_STREAM, 0);
-    if (dS < 0){
-        perror("! Issue whith socket creation !");
-        return 1;
-    }
+      if ((status = getaddrinfo(argv[1], argv[2], &hints, &res)) != 0) { //recover the version of the given ip
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
+        exit(EXIT_FAILURE);
+      }
 
-    /* Open connexion */
-    int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+      p = res;
+      int dS;
+      
+        // Identification de l'adresse courante
+        if (p->ai_family == AF_INET) { // IPv4
 
-    if (con<0){
-        perror("! Can't find the target !");
-        return 1;
-    }
+          /* Define target (ip:port) with calling program parameters */
+            struct sockaddr_in aS;
+            aS.sin_family = AF_INET;
+            aS.sin_port = htons(atoi(argv[2]));
+
+            inet_pton(AF_INET, argv[1], &(aS.sin_addr)); 
+            socklen_t lgA = sizeof(struct sockaddr_in); 
+
+            /* Create stream socket with IPv4 domain and IP protocol */
+            dS = socket(PF_INET, SOCK_STREAM, 0);
+            if (dS < 0){
+                perror("! Issue whith socket creation !");
+                return 1;
+            }
+
+            /* Open connexion */
+            int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+
+            if (con<0){
+                perror("! Can't find the target !");
+                return 1;
+            }
+        }
+        else { // IPv6
+
+            /* Define target (ip:port) with calling program parameters */
+            struct sockaddr_in6 aS;
+            aS.sin6_family = AF_INET6;
+            aS.sin6_port = htons(atoi(argv[2]));
+
+            inet_pton(AF_INET6, argv[1], &(aS.sin6_addr)); 
+            socklen_t lgA = sizeof(struct sockaddr_in6); 
+
+            /* Create stream socket with IPv6 domain and IP protocol */
+            dS = socket(PF_INET6, SOCK_STREAM, 0);
+            if (dS < 0){
+                perror("! Issue whith socket creation !");
+                return 1;
+            }
+
+            /* Open connexion */
+            int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+
+            if (con<0){
+                perror("! Can't find the target !");
+                return 1;
+            }
+        }
+
+      // Libération de la mémoire occupée par les enregistrements
+      freeaddrinfo(res);
+    
 
     /* Waiting the message from the server */
     int numClient;
