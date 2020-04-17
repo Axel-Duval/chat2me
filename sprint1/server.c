@@ -91,7 +91,9 @@ int main(int argc, char *argv[])
 
     /* Define some variables */
     char msg1[MAX_BUFFER_LENGTH];
+    memset(msg1, 0, MAX_BUFFER_LENGTH);
     char msg2[MAX_BUFFER_LENGTH];
+    memset(msg2, 0, MAX_BUFFER_LENGTH);
     int rcv;
     int sd ;
     int cmp;
