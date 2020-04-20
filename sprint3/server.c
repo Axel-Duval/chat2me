@@ -18,6 +18,8 @@
 #define MAX_BUFFER_LENGTH 256
 #define JOINER_LENGTH 4
 #define JOINER " - "
+#define FILE_PROTOCOL_LENGTH 10
+#define FILE_PROTOCOL "-FILE-"
 
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
@@ -90,7 +92,7 @@ void *thread_func(void *arg){
     char joiner[JOINER_LENGTH];
     strcpy(joiner,JOINER);
     char message[MAX_BUFFER_LENGTH + 4 + MAX_USERNAME_LENGTH];
-    char file_protocol[10] = "-FILE-";
+    char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
 
     /* Define some int */
     int rv;
@@ -109,11 +111,12 @@ void *thread_func(void *arg){
             remove_socket(sockets, socketCli);
             break;
         }
-        
-        else if(strcmp(buffer, file_protocol) == 0){
-            printf("File protocol detected !\n");
-            if(is_file == 0){
-                is_file = 1;
+        else{
+
+            /* Switcher */
+            if(strcmp(buffer, file_protocol) == 0){
+                printf("File protocol detected !\n");
+                is_file = (is_file == 0) ? 1 : 0;
                 for(i = 0; i < MAX_SOCKETS; i++){
                     /* Only send on valid sockets and not to our client socket... */
                     if(sockets[i] != 0 && sockets[i] != socketCli){
@@ -129,8 +132,33 @@ void *thread_func(void *arg){
                     }
                 }
             }
-            else{
-                is_file = 0;
+
+            /* Check if it's a simple text message to format the sending message */
+            else if(rv > 0 && is_file == 0){
+
+                memset(message, 0, sizeof(message));
+
+                strcat(message,username);
+                strcat(message,joiner);
+                strcat(message,buffer);
+
+                for(i = 0; i < MAX_SOCKETS; i++){
+                    /* Only send on valid sockets and not to our client socket... */
+                    if(sockets[i] != 0 && sockets[i] != socketCli){
+                        /* Send message to client [i] */
+                        while(sd = send(sockets[i], message, sizeof(message),0) <= 0){
+                            /* Error sending message to client [i] */
+                            if(sd == 0){
+                                /* Because of connexion lost with client [i] need to remove his socket */
+                                remove_socket(sockets, sockets[i]);
+                                break;
+                            }
+                        }
+                    }
+                }            
+            }
+            /* Check if it's a file */
+            else if(rv > 0 && is_file == 1){
                 for(i = 0; i < MAX_SOCKETS; i++){
                     /* Only send on valid sockets and not to our client socket... */
                     if(sockets[i] != 0 && sockets[i] != socketCli){
@@ -142,48 +170,6 @@ void *thread_func(void *arg){
                                 remove_socket(sockets, sockets[i]);
                                 break;
                             }
-                        }
-                    }
-                }
-            }
-        }
-
-        /* Check if it's a simple text message */
-        else if(rv > 0 && is_file == 0){
-
-            memset(message, 0, sizeof(message));
-
-            strcat(message,username);
-            strcat(message,joiner);
-            strcat(message,buffer);
-
-            for(i = 0; i < MAX_SOCKETS; i++){
-                /* Only send on valid sockets and not to our client socket... */
-                if(sockets[i] != 0 && sockets[i] != socketCli){
-                    /* Send message to client [i] */
-                    while(sd = send(sockets[i], message, sizeof(message),0) <= 0){
-                        /* Error sending message to client [i] */
-                        if(sd == 0){
-                            /* Because of connexion lost with client [i] need to remove his socket */
-                            remove_socket(sockets, sockets[i]);
-                            break;
-                        }
-                    }
-                }
-            }            
-        }
-        /* Check if it's a file */
-        else if(rv > 0 && is_file == 1){
-            for(i = 0; i < MAX_SOCKETS; i++){
-                /* Only send on valid sockets and not to our client socket... */
-                if(sockets[i] != 0 && sockets[i] != socketCli){
-                    /* Send message to client [i] */
-                    while(sd = send(sockets[i], buffer, sizeof(buffer),0) <= 0){
-                        /* Error sending message to client [i] */
-                        if(sd == 0){
-                            /* Because of connexion lost with client [i] need to remove his socket */
-                            remove_socket(sockets, sockets[i]);
-                            break;
                         }
                     }
                 }

@@ -19,16 +19,102 @@
 #define MAX_USERNAME_LENGTH 20
 #define MAX_BUFFER_LENGTH 256
 #define JOINER_LENGTH 4
+#define FILE_PROTOCOL_LENGTH 10
+#define FILE_PROTOCOL "-FILE-"
+
+void *sendFile(void* dS){
+    /* Get server's socket and declare some variables */
+    int* arg = dS;
+    char buffer[MAX_BUFFER_LENGTH];
+    int sd;
+    char filename[MAX_BUFFER_LENGTH];
+    char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
+    DIR* directory;
+	FILE* file;
+
+    /* Clear buffers */
+    memset(filename, 0, MAX_BUFFER_LENGTH);
+    memset(buffer, 0, MAX_BUFFER_LENGTH);
+
+    /* Print files in the current directory */
+    directory = opendir (".");
+    if (directory != NULL){
+        struct dirent * dir_f;
+        while ((dir_f = readdir(directory)) != NULL){					
+            printf("%s\n", dir_f->d_name);
+        }
+        closedir(directory);
+    }
+    else {
+        perror("Directory empty or doesn't exist !\n");
+        pthread_exit(NULL);
+    }
+    
+    /* Asking for a file */
+    printf("Choose a file : ");
+    fgets(filename, MAX_BUFFER_LENGTH, stdin);
+
+    /* Open the selected file */
+    *strchr(filename, '\n') = '\0';
+    file = fopen(filename, "r");
+
+    if(file == NULL){
+        printf("ERROR\n");
+    }
+
+    /* Init the protocol for sending file */
+    while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
+        if(sd == 0){
+            /* Connexion lost */
+            pthread_exit(NULL);
+        }
+    }
+
+    /* MEGA IMPORTANT ! */
+    sleep(1);
+
+    /* Then send the filename */
+    while(sd = send(*arg,&filename,strlen(filename),0) <= strlen(filename)-1){
+        if(sd == 0){
+            /* Connexion lost */
+            pthread_exit(NULL);
+        }
+    }
+
+    /* Then send the content */
+    while (fgets(buffer, sizeof(buffer), file) != NULL){
+        /* Sending packets */
+        while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
+            if(sd == 0){
+                /* Connexion lost */
+                pthread_exit(NULL);
+            }
+        }
+        memset(buffer, 0, strlen(buffer));
+    }
+
+    /* MEGA IMPORTANT ! */
+    sleep(1);
+
+    /* finally, end the the protocol */
+    while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
+        if(sd == 0){
+            /* Connexion lost */
+            pthread_exit(NULL);
+        }
+    }
+
+    /* Close the file */
+    fclose(file);
+    printf("File sent !\n");
+    pthread_exit(NULL);
+}
 
 void *sendMsg(void* dS){
     /* Get server's socket and declare some variables */
     int* arg = dS;
     char buffer[MAX_BUFFER_LENGTH];
     int sd;
-    char filename[MAX_BUFFER_LENGTH];
-    char file_protocol[10] = "-FILE-";
-    DIR* directory;
-	FILE* file;
 
     while(1){
         /* Clean the buffer */
@@ -44,93 +130,66 @@ void *sendMsg(void* dS){
             printf("End of the communication ...\n");
             break;
         }
+        else if(strcmp(buffer,"/file") == 0){
 
-        if(strcmp(buffer,"/file") == 0){
-
-            memset(filename, 0, MAX_BUFFER_LENGTH);
-
-            /* Print files in the current directory */
-			directory = opendir (".");
-			if (directory != NULL){
-				struct dirent * dir_f;
-				while ((dir_f = readdir(directory)) != NULL){					
-                    printf("%s\n", dir_f->d_name);
-				}
-				closedir(directory);
-			}
-            else {
-				perror ("Directory empty or doesn't exist !\n");
-                break;
-			}
-			
-            /* Asking for a file */
-            printf("Choose a file : ");
-            fgets(filename, MAX_BUFFER_LENGTH, stdin);
-
-            /* Open the selected file */
-            *strchr(filename, '\n') = '\0';
-            file = fopen(filename, "r");
-
-            if(file == NULL){
-                printf("ERROR\n");
-            }
-
-            /* Init the protocol for sending file */
-            while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
-                if(sd == 0){
-                    /* Connexion lost */
-                    break;
-                }
-            }
-
-            printf("protocol sent\n");
-
-            /* Then send the filename */
-            while(sd = send(*arg,&filename,strlen(filename),0) <= strlen(filename)-1){
-                if(sd == 0){
-                    /* Connexion lost */
-                    break;
-                }
-            }
-
-            /* Then send the content */
-            memset(buffer, 0, strlen(buffer));
-			while (fgets(buffer, sizeof(buffer), file) != NULL){
-                /* Sending packets */
-                printf("sending : %s\n",buffer);
-                while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
-                    if(sd == 0){
-                        /* Connexion lost */
-                        break;
-                    }
-                }
-				printf("|");
-                memset(buffer, 0, strlen(buffer));
-                sleep(1);
-			}        
-
-            /* finally, end the the protocol */
-            while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
-                if(sd == 0){
-                    /* Connexion lost */
-                    break;
-                }
-            }
-            printf("Final protocol\n");
-
-            /* Close the file */
-			fclose(file);
-            printf("\nFile sent\n");
+            /* Create a thread */
+            pthread_t sdF;
+            pthread_create(&sdF,0,sendFile,arg);
+            pthread_join(sdF,0);
         }
-
-        /* Send the message */
-        while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
-           if(sd == 0){
-                /* Connexion lost */
-                break;
-           }
+        else{
+            /* Send the message */
+            while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
+                if(sd == 0){
+                    /* Connexion lost */
+                    break;
+                }
+            }
         }
     }
+    pthread_exit(NULL);
+}
+
+void *recvFile(void* dS){
+    /* Get server's socket */
+    int* arg = dS;
+    char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_USERNAME_LENGTH];
+    int rc;
+    char filename[MAX_BUFFER_LENGTH];
+    char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
+    FILE* file;
+
+    /* Client recieve a file */
+    printf("Ready to recieve a file...\n");
+    memset(buffer, 0, strlen(buffer));
+    memset(filename, 0, strlen(filename));
+
+    /* Get the filename */
+    while(rc = recv(*arg, &filename, sizeof(filename), 0) <= 0){
+        if(rc == 0){
+            /* Connexion lost */
+            break;
+        }
+    }
+
+    /* Show the filename and create the new file */
+    printf("Filename : %s\n", filename);
+    file = fopen(filename, "a");
+
+    /* Write in the new file */
+    if(file != NULL){
+        /* Get chunks of the file */
+        rc = recv(*arg, &buffer, sizeof(buffer), 0);
+        while(strcmp(buffer, file_protocol) != 0){
+            fprintf(file, "%s", buffer);
+            rc = recv(*arg, &buffer, sizeof(buffer), 0);     
+        }
+        fclose(file);
+    }
+    else{
+        perror("Error creating the new file...\n");
+    }
+    printf("File downloaded !\n");
     pthread_exit(NULL);
 }
 
@@ -139,9 +198,7 @@ void *recvMsg(void* dS){
     int* arg = dS;
     char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_USERNAME_LENGTH];
     int rc;
-    char filename[MAX_BUFFER_LENGTH];
-    char file_protocol[10] = "-FILE-";
-    FILE* file;
+    char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
 
     while(1){
         /* Clean the buffer */
@@ -156,37 +213,13 @@ void *recvMsg(void* dS){
         }
 
         if(strcmp(buffer, file_protocol) == 0){
-            /* Client recieve a file */
-			printf("Ready to recieve a file...\n");
-            memset(buffer, 0, strlen(buffer));
 
-            /* Get the filename */
-			while(rc = recv(*arg, &filename, sizeof(filename), 0) <= 0){
-                if(rc == 0){
-                    /* Connexion lost */
-                    break;
-                }
-            }
+            printf("HERE\n");
 
-            /* Show the filename and create the new file */
-			printf("Filename : %s\n", filename);
-            file = fopen(filename, "w");
-
-            /* Write in the new file */
-            if(file != NULL){
-                /* Get chunks of the file */
-                rc = recv(*arg, &buffer, sizeof(buffer), 0);
-                while(strcmp(buffer, file_protocol) != 0){
-                    fprintf(file, "%s", buffer);
-                    rc = recv(*arg, &buffer, sizeof(buffer), 0);
-                    printf("recieve : %s\n",buffer);
-                    
-                }
-                fclose(file);
-            }
-            else{
-				perror("Error creating the new file...\n");
-			}
+            pthread_t rcF;
+            pthread_create(&rcF,0,recvFile,arg);
+            pthread_join(rcF,0);
+            
 		}
         else{
             /* Print the message */
