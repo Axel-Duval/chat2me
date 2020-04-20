@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
 
 /**
 * This version allows a client to send messages and files
@@ -92,18 +93,21 @@ void *sendMsg(void* dS){
                 }
             }
 
-            printf("filename sent\n");
-
             /* Then send the content */
             memset(buffer, 0, strlen(buffer));
 			while (fgets(buffer, sizeof(buffer), file) != NULL){
                 /* Sending packets */
-
+                printf("sending : %s\n",buffer);
+                while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
+                    if(sd == 0){
+                        /* Connexion lost */
+                        break;
+                    }
+                }
 				printf("|");
                 memset(buffer, 0, strlen(buffer));
-			}
-
-            printf("\npackets sent !\n");            
+                sleep(1);
+			}        
 
             /* finally, end the the protocol */
             while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
@@ -112,11 +116,11 @@ void *sendMsg(void* dS){
                     break;
                 }
             }
-
-            printf("final protocol sent\n");
+            printf("Final protocol\n");
 
             /* Close the file */
-			fclose(file); 
+			fclose(file);
+            printf("\nFile sent\n");
         }
 
         /* Send the message */
@@ -136,7 +140,7 @@ void *recvMsg(void* dS){
     char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_USERNAME_LENGTH];
     int rc;
     char filename[MAX_BUFFER_LENGTH];
-    char file_protocol[7] = "-FILE-";
+    char file_protocol[10] = "-FILE-";
     FILE* file;
 
     while(1){
@@ -150,20 +154,13 @@ void *recvMsg(void* dS){
                 break;
            }
         }
-        /* 
-        
-        
-        ERROR can't handle the fil_protocol...
-        Why I don't know ?!
-        
-        
-        
-         */
+
         if(strcmp(buffer, file_protocol) == 0){
             /* Client recieve a file */
 			printf("Ready to recieve a file...\n");
             memset(buffer, 0, strlen(buffer));
 
+            /* Get the filename */
 			while(rc = recv(*arg, &filename, sizeof(filename), 0) <= 0){
                 if(rc == 0){
                     /* Connexion lost */
@@ -173,27 +170,23 @@ void *recvMsg(void* dS){
 
             /* Show the filename and create the new file */
 			printf("Filename : %s\n", filename);
-            file = fopen(filename, "a");
+            file = fopen(filename, "w");
 
+            /* Write in the new file */
             if(file != NULL){
-                /* Get the chunks of the file */
+                /* Get chunks of the file */
+                rc = recv(*arg, &buffer, sizeof(buffer), 0);
                 while(strcmp(buffer, file_protocol) != 0){
-                    memset(buffer, 0, strlen(buffer));    
-                    while(rc = recv(*arg, &buffer, sizeof(buffer), 0) <= 0){
-                        if(rc == 0){
-                            /* Connexion lost */
-                            break;
-                        }
-                    }
-                    fputs(buffer, file);                           
+                    fprintf(file, "%s", buffer);
+                    rc = recv(*arg, &buffer, sizeof(buffer), 0);
+                    printf("recieve : %s\n",buffer);
+                    
                 }
+                fclose(file);
             }
             else{
-                printf("ERROR\n");
 				perror("Error creating the new file...\n");
 			}
-            fclose(file);
-            printf("File recieved...\n");
 		}
         else{
             /* Print the message */

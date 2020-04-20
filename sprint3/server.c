@@ -109,13 +109,42 @@ void *thread_func(void *arg){
             remove_socket(sockets, socketCli);
             break;
         }
+        
         else if(strcmp(buffer, file_protocol) == 0){
-            printf("We got a file !\n");
+            printf("File protocol detected !\n");
             if(is_file == 0){
                 is_file = 1;
+                for(i = 0; i < MAX_SOCKETS; i++){
+                    /* Only send on valid sockets and not to our client socket... */
+                    if(sockets[i] != 0 && sockets[i] != socketCli){
+                        /* Send message to client [i] */
+                        while(sd = send(sockets[i], buffer, sizeof(buffer),0) <= 0){
+                            /* Error sending message to client [i] */
+                            if(sd == 0){
+                                /* Because of connexion lost with client [i] need to remove his socket */
+                                remove_socket(sockets, sockets[i]);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
             else{
                 is_file = 0;
+                for(i = 0; i < MAX_SOCKETS; i++){
+                    /* Only send on valid sockets and not to our client socket... */
+                    if(sockets[i] != 0 && sockets[i] != socketCli){
+                        /* Send message to client [i] */
+                        while(sd = send(sockets[i], buffer, sizeof(buffer),0) <= 0){
+                            /* Error sending message to client [i] */
+                            if(sd == 0){
+                                /* Because of connexion lost with client [i] need to remove his socket */
+                                remove_socket(sockets, sockets[i]);
+                                break;
+                            }
+                        }
+                    }
+                }
             }
         }
 
