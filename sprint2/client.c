@@ -89,6 +89,7 @@ int main(int argc, char *argv[]){
     hints.ai_family = AF_UNSPEC; // the version of ip addresses isn't specified
     hints.ai_socktype = SOCK_STREAM; //TCP
 
+    /*Identify current address*/
     if ((status = getaddrinfo(argv[1], argv[2], &hints, &res)) != 0) { //recover the version of the given ip
     fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
     exit(EXIT_FAILURE);
@@ -97,7 +98,6 @@ int main(int argc, char *argv[]){
     p = res;
     int dS;
       
-    // Identification de l'adresse courante
     if (p->ai_family == AF_INET) { // IPv4
         printf("IPV4\n");
 
@@ -151,7 +151,7 @@ int main(int argc, char *argv[]){
         }
     }
 
-    // Libération de la mémoire occupée par les enregistrements
+    /*Free memory*/
     freeaddrinfo(res);
 
     /* Waiting the message from the server */

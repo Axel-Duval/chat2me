@@ -154,8 +154,6 @@ int main(int argc, char *argv[]){
     listen(dS,10);
     printf("Start server on port : %s\n", argv[1]);
 
-    /* FUTUR while(1) HERE ! */
-
     /* Create addr for 2 clients */
     struct sockaddr_in addrCli1;
     struct sockaddr_in addrCli2;
