@@ -22,6 +22,10 @@
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
 
+/* Frequency for sending file chunks => 5ms */
+#define FREQUENCY 5000000L
+
+
 void *sendFile(void* dS){
     /* Get server's socket and declare some variables */
     int* arg = dS;
@@ -30,7 +34,7 @@ void *sendFile(void* dS){
     char filename[MAX_BUFFER_LENGTH];
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
     DIR* directory;
-	FILE* file;
+	FILE* file = NULL;
 
     /* Clear buffers */
     memset(filename, 0, MAX_BUFFER_LENGTH);
@@ -40,26 +44,34 @@ void *sendFile(void* dS){
     directory = opendir (".");
     if (directory != NULL){
         struct dirent * dir_f;
+        printf("---------------------FILES-----------------------\n");
         while ((dir_f = readdir(directory)) != NULL){					
-            printf("%s\n", dir_f->d_name);
+            if(strcmp(dir_f->d_name,".")!=0 && strcmp(dir_f->d_name,"..")!=0){
+                printf("%s\n", dir_f->d_name);
+            }
         }
         closedir(directory);
+        printf("---------------------FILES-----------------------\n");
     }
     else {
         perror("Directory empty or doesn't exist !\n");
         pthread_exit(NULL);
     }
     
-    /* Asking for a file */
-    printf("Choose a file : ");
-    fgets(filename, MAX_BUFFER_LENGTH, stdin);
+    /* Asking for valid filename */
+    while(file == NULL){
+        /* Asking for a file */
+        printf("Type a filename (or /abort) : ");
+        fgets(filename, MAX_BUFFER_LENGTH, stdin);
 
-    /* Open the selected file */
-    *strchr(filename, '\n') = '\0';
-    file = fopen(filename, "r");
+        /* Client want to continue ? */
+        *strchr(filename, '\n') = '\0';
+        if(strcmp(filename,"/abort")==0){
+            pthread_exit(NULL);
+        }
 
-    if(file == NULL){
-        printf("ERROR\n");
+        /* Open the selected file */
+        file = fopen(filename, "r");
     }
 
     /* Init the protocol for sending file */
@@ -70,8 +82,14 @@ void *sendFile(void* dS){
         }
     }
 
+    /* For the spinner */
+    int counter = 0;
+    struct timespec tim, tim2;
+    tim.tv_sec = 0;
+    tim.tv_nsec = FREQUENCY;
+
     /* MEGA IMPORTANT ! */
-    sleep(1);
+    nanosleep(&tim , &tim2);
 
     /* Then send the filename */
     while(sd = send(*arg,&filename,strlen(filename),0) <= strlen(filename)-1){
@@ -81,7 +99,7 @@ void *sendFile(void* dS){
         }
     }
 
-    /* Then send the content */
+    /* Then send the content */    
     while (fgets(buffer, sizeof(buffer), file) != NULL){
         /* Sending packets */
         while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
@@ -90,11 +108,16 @@ void *sendFile(void* dS){
                 pthread_exit(NULL);
             }
         }
+        /* Need tempo because it's to fast */
+        printf("\b%c", "|/-\\"[counter%4]);
+        counter++;
+        fflush(stdout);
+        nanosleep(&tim , &tim2);
         memset(buffer, 0, strlen(buffer));
     }
 
     /* MEGA IMPORTANT ! */
-    sleep(1);
+    nanosleep(&tim , &tim2);
 
     /* finally, end the the protocol */
     while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
@@ -106,7 +129,7 @@ void *sendFile(void* dS){
 
     /* Close the file */
     fclose(file);
-    printf("File sent !\n");
+    printf("\bFile sent !\n");
     pthread_exit(NULL);
 }
 
@@ -130,6 +153,8 @@ void *sendMsg(void* dS){
             printf("End of the communication ...\n");
             break;
         }
+
+        /* Check if it is a file */
         else if(strcmp(buffer,"/file") == 0){
 
             /* Create a thread */
@@ -137,6 +162,8 @@ void *sendMsg(void* dS){
             pthread_create(&sdF,0,sendFile,arg);
             pthread_join(sdF,0);
         }
+
+        /* It's a simple text message */
         else{
             /* Send the message */
             while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
@@ -174,22 +201,28 @@ void *recvFile(void* dS){
 
     /* Show the filename and create the new file */
     printf("Filename : %s\n", filename);
-    file = fopen(filename, "a");
+    file = fopen(filename, "w");
+
+    /* For the spinner */
+    int counter = 0;
 
     /* Write in the new file */
     if(file != NULL){
         /* Get chunks of the file */
         rc = recv(*arg, &buffer, sizeof(buffer), 0);
         while(strcmp(buffer, file_protocol) != 0){
+            printf("\b%c", "|/-\\"[counter%4]);
+            counter++;
+            fflush(stdout);
             fprintf(file, "%s", buffer);
-            rc = recv(*arg, &buffer, sizeof(buffer), 0);     
+            rc = recv(*arg, &buffer, sizeof(buffer), 0);
         }
         fclose(file);
     }
     else{
         perror("Error creating the new file...\n");
     }
-    printf("File downloaded !\n");
+    printf("\bFile downloaded !\n");
     pthread_exit(NULL);
 }
 
@@ -212,15 +245,16 @@ void *recvMsg(void* dS){
            }
         }
 
+        /* Client recieve a file */
         if(strcmp(buffer, file_protocol) == 0){
 
-            printf("HERE\n");
-
+            /* Create thread */
             pthread_t rcF;
             pthread_create(&rcF,0,recvFile,arg);
             pthread_join(rcF,0);
             
 		}
+        /* Client recieve simple text message */
         else{
             /* Print the message */
             printf("%s\n", buffer);
