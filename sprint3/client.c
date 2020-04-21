@@ -22,8 +22,8 @@
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
 
-/* Frequency for sending file chunks => 5ms */
-#define FREQUENCY 5000000L
+/* Frequency for sending file chunks => 500Hz */
+#define FREQUENCY 2000000L
 
 
 void *sendFile(void* dS){
