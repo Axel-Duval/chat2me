@@ -99,10 +99,12 @@ void *thread_func(void *arg){
     int sd;
     int i;
     int is_file = 0;
+    int flip_flop = 0;
 
     while(1){
         /* Clean the buffer */
-        memset(buffer, 0, sizeof(buffer));        
+        memset(buffer, 0, sizeof(buffer));
+        flip_flop = 0;
 
         /* Waiting for message from client */
         rv = recv(socketCli, &buffer, sizeof(buffer), 0);
@@ -116,28 +118,20 @@ void *thread_func(void *arg){
             /* Switcher */
             if(strcmp(buffer, file_protocol) == 0){
                 printf("File protocol detected !\n");
-                is_file = (is_file == 0) ? 1 : 0;
-                for(i = 0; i < MAX_SOCKETS; i++){
-                    /* Only send on valid sockets and not to our client socket... */
-                    if(sockets[i] != 0 && sockets[i] != socketCli){
-                        /* Send message to client [i] */
-                        while(sd = send(sockets[i], buffer, sizeof(buffer),0) <= 0){
-                            /* Error sending message to client [i] */
-                            if(sd == 0){
-                                /* Because of connexion lost with client [i] need to remove his socket */
-                                remove_socket(sockets, sockets[i]);
-                                break;
-                            }
-                        }
-                    }
+                if(is_file == 0){
+                    is_file = 1;
+                }
+                else{
+                    is_file = 0;
+                    /* Flip flop */
+                    flip_flop = 1;
                 }
             }
 
             /* Check if it's a simple text message to format the sending message */
-            else if(rv > 0 && is_file == 0){
+            if(flip_flop == 0 && is_file == 0){
 
                 memset(message, 0, sizeof(message));
-
                 strcat(message,username);
                 strcat(message,joiner);
                 strcat(message,buffer);
@@ -155,10 +149,10 @@ void *thread_func(void *arg){
                             }
                         }
                     }
-                }            
+                }
             }
             /* Check if it's a file */
-            else if(rv > 0 && is_file == 1){
+            else if(is_file == 1){
                 for(i = 0; i < MAX_SOCKETS; i++){
                     /* Only send on valid sockets and not to our client socket... */
                     if(sockets[i] != 0 && sockets[i] != socketCli){

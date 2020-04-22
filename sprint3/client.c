@@ -34,11 +34,16 @@ void *sendFile(void* dS){
     char filename[MAX_BUFFER_LENGTH];
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
     DIR* directory;
-	FILE* file = NULL;
+	FILE* file = NULL;    
 
     /* Clear buffers */
     memset(filename, 0, MAX_BUFFER_LENGTH);
     memset(buffer, 0, MAX_BUFFER_LENGTH);
+
+    /* For the timer */
+    struct timespec tim, tim2;
+    tim.tv_sec = 0;
+    tim.tv_nsec = FREQUENCY;
 
     /* Print files in the current directory */
     directory = opendir (".");
@@ -71,56 +76,63 @@ void *sendFile(void* dS){
         }
 
         /* Open the selected file */
-        file = fopen(filename, "r");
+        file = fopen(filename, "rb");
     }
 
     /* Init the protocol for sending file */
-    while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
-        if(sd == 0){
-            /* Connexion lost */
-            pthread_exit(NULL);
-        }
+    sd = send(*arg,&file_protocol,strlen(file_protocol),0);
+    if(sd == 0){
+        /* Connexion lost */
+        pthread_exit(NULL);
     }
-
-    /* For the spinner */
-    int counter = 0;
-    struct timespec tim, tim2;
-    tim.tv_sec = 0;
-    tim.tv_nsec = FREQUENCY;
 
     /* MEGA IMPORTANT ! */
     nanosleep(&tim , &tim2);
 
     /* Then send the filename */
-    while(sd = send(*arg,&filename,strlen(filename),0) <= strlen(filename)-1){
+    sd = send(*arg,&filename,sizeof(filename),0);
+    if(sd == 0){
+        /* Connexion lost */
+        pthread_exit(NULL);
+    }
+
+    /* Get file length */
+	fseek(file, 0, SEEK_END);
+    int size = ftell(file);
+    char* size_c = (char*)&size;
+	printf("sending %d bytes...\n",size);
+	fseek(file, 0, SEEK_SET);
+
+    /* Then send the size */
+    sd = send(*arg,size_c,sizeof(size_c),0);
+    if(sd == 0){
+        /* Connexion lost */
+        pthread_exit(NULL);
+    }
+
+    /* Then send the content */
+    while (size > sizeof(buffer)){
+        /* Sending packets */
+        fread(buffer, sizeof(buffer), 1, file);
+        nanosleep(&tim , &tim2);
+        sd = send(*arg,&buffer,sizeof(buffer),0);
         if(sd == 0){
             /* Connexion lost */
             pthread_exit(NULL);
         }
+        size-= sizeof(buffer);
     }
 
-    /* Then send the content */    
-    while (fgets(buffer, sizeof(buffer), file) != NULL){
-        /* Sending packets */
-        while(sd = send(*arg,&buffer,strlen(buffer),0) <= strlen(buffer)-1){
-            if(sd == 0){
-                /* Connexion lost */
-                pthread_exit(NULL);
-            }
-        }
-        /* Need tempo because it's to fast */
-        printf("\b%c", "|/-\\"[counter%4]);
-        counter++;
-        fflush(stdout);
-        nanosleep(&tim , &tim2);
-        memset(buffer, 0, strlen(buffer));
-    }
-
-    /* MEGA IMPORTANT ! */
+    fread(buffer, size, 1, file);
     nanosleep(&tim , &tim2);
+    sd = send(*arg,&buffer,size,0);
+    if(sd == 0){
+        /* Connexion lost */
+        pthread_exit(NULL);
+    }
 
     /* finally, end the the protocol */
-    while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) <= strlen(file_protocol)-1){
+    while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) < strlen(file_protocol)){
         if(sd == 0){
             /* Connexion lost */
             pthread_exit(NULL);
@@ -180,49 +192,62 @@ void *sendMsg(void* dS){
 void *recvFile(void* dS){
     /* Get server's socket */
     int* arg = dS;
-    char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_USERNAME_LENGTH];
+    char buffer[MAX_BUFFER_LENGTH];
     int rc;
     char filename[MAX_BUFFER_LENGTH];
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
     FILE* file;
+    int size;
+    char* size_c = (char*)&size;
 
     /* Client recieve a file */
-    printf("Ready to recieve a file...\n");
-    memset(buffer, 0, strlen(buffer));
-    memset(filename, 0, strlen(filename));
+    printf("Recieving a file...\n");
+    memset(buffer, 0, sizeof(buffer));
+    memset(filename, 0, sizeof(filename));
 
     /* Get the filename */
-    while(rc = recv(*arg, &filename, sizeof(filename), 0) <= 0){
-        if(rc == 0){
-            /* Connexion lost */
-            break;
-        }
+    rc = recv(*arg, &filename, sizeof(filename), 0);
+    if(rc == 0){
+        /* Connexion lost */
+        pthread_exit(NULL);
     }
+
+    /* Get the size */
+    rc = recv(*arg, size_c, sizeof(size_c), 0);
+    if(rc == 0){
+        /* Connexion lost */
+        pthread_exit(NULL);
+    }
+
+    printf("Total : %d bytes\n",size);
 
     /* Show the filename and create the new file */
     printf("Filename : %s\n", filename);
-    file = fopen(filename, "w");
-
-    /* For the spinner */
-    int counter = 0;
+    file = fopen(filename, "wb");
 
     /* Write in the new file */
-    if(file != NULL){
-        /* Get chunks of the file */
-        rc = recv(*arg, &buffer, sizeof(buffer), 0);
-        while(strcmp(buffer, file_protocol) != 0){
-            printf("\b%c", "|/-\\"[counter%4]);
-            counter++;
-            fflush(stdout);
-            fprintf(file, "%s", buffer);
-            rc = recv(*arg, &buffer, sizeof(buffer), 0);
-        }
-        fclose(file);
-    }
-    else{
+    if(file == NULL){
         perror("Error creating the new file...\n");
+        pthread_exit(NULL);
     }
-    printf("\bFile downloaded !\n");
+
+    /* Flushing */
+    recv(*arg, &buffer, sizeof(buffer), 0);
+
+    /* Get chunks */
+    while(size > sizeof(buffer)){
+        recv(*arg, &buffer, sizeof(buffer), 0);
+        fwrite(buffer, sizeof(buffer), 1, file);
+        size = size - MAX_BUFFER_LENGTH;
+    }
+
+    /* Get last chunk */
+    recv(*arg, &buffer, size, 0);
+    fwrite(buffer, size, 1, file);
+
+    /* Finish file transfert */
+    fclose(file);
+    printf("\bFile transfered !\n");
     pthread_exit(NULL);
 }
 
@@ -261,7 +286,6 @@ void *recvMsg(void* dS){
         }
     }
 }
-
 
 int main(int argc, char *argv[]){
 
