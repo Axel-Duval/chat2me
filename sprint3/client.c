@@ -22,8 +22,8 @@
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
 
-/* Frequency for sending file chunks => 500Hz */
-#define FREQUENCY 2000000L
+/* Frequency for sending file chunks => 200Hz */
+#define FREQUENCY 5000000L
 
 
 void *sendFile(void* dS){
@@ -130,6 +130,9 @@ void *sendFile(void* dS){
         /* Connexion lost */
         pthread_exit(NULL);
     }
+
+    /* MEGA IMPORTANT ! */
+    nanosleep(&tim , &tim2);
 
     /* finally, end the the protocol */
     while(sd = send(*arg,&file_protocol,strlen(file_protocol),0) < strlen(file_protocol)){
