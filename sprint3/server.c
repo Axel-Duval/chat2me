@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <netdb.h>
 
 /**
 * This version allows a server to recieve a message and print it
@@ -189,20 +190,48 @@ int main(int argc, char *argv[]){
     int rc;
 
     /* Define target (ip:port) with calling program parameters */
-    struct sockaddr_in ad;
-	ad.sin_family = AF_INET;
-	ad.sin_addr.s_addr = INADDR_ANY;
-	ad.sin_port = htons(atoi(argv[1]));
+    struct addrinfo hints;
+    struct addrinfo *result, *rp;
+    int dS, s;
+    struct sockaddr_storage peer_addr;
+    socklen_t peer_addr_len;
+    ssize_t nread;
+    char buf[MAX_BUFFER_LENGTH];
+    memset(&hints, 0, sizeof(struct addrinfo));
+    hints.ai_family = AF_UNSPEC;    /* Allow IPv4 or IPv6 */
+    hints.ai_socktype = SOCK_STREAM; /* Stream socket */
+    hints.ai_flags = AF_WANPIPE;    /* For wildcard IP address */
+    hints.ai_protocol = 0;          /* Any protocol */
+    hints.ai_canonname = NULL;
+    hints.ai_addr = NULL;
+    hints.ai_next = NULL;
+    s = getaddrinfo(NULL, argv[1], &hints, &result);
+    if (s != 0) {
+        fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(s));
+        exit(EXIT_FAILURE);
+    }
 
-    /* Create stream socket with IPv4 domain and IP protocol */
-	int dS = socket(PF_INET,SOCK_STREAM,0);
-    if(dS == -1){
-		perror("! Issue whith socket creation !\n");
-		exit(1);
-	}
+    /* getaddrinfo() returns a list of address structures.
+    Try each address until we successfully bind(2).
+    If socket() (or bind()) fails, we (close the socket
+    and) try the next address. */
 
-    /* Binding the socket */
-    bind(dS,(struct sockaddr*)&ad,sizeof(ad));
+    for (rp = result; rp != NULL; rp = rp->ai_next) {
+        dS = socket(rp->ai_family, rp->ai_socktype, rp->ai_protocol);
+        if (dS == -1){
+            continue;
+        }
+        if (bind(dS, rp->ai_addr, rp->ai_addrlen) == 0){
+            break;                  /* Success */
+        }
+        close(dS);
+    }
+
+    if (rp == NULL) {               /* No address succeeded */
+        fprintf(stderr, "Could not bind\n");
+        exit(EXIT_FAILURE);
+    }
+    freeaddrinfo(result);
 
     /* Starting the server */
     listen(dS,MAX_SOCKETS);
