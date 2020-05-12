@@ -61,7 +61,8 @@ chat2me/sprint2_v2> gcc -o client client.c -lpthread
 
 ## Sprint 3
 
-Files transfert
+Files transfert.
+To create a real scenario, with min 2 clients, you can run simultaneously client in the OtherClient and in the sprint3 folders.
 
 
 - **Run**
