@@ -87,7 +87,42 @@ int remove_socket(int sockets[], int socket){
     }
 }
 
-/* Create thread wich wait for client message and send it to all others clients */
+void init_channels(){
+    for (int i = 0; i < MAX_CHANNELS; i++){
+        switch (i) {
+            case 0:
+                strcpy(channels[i].name,"Channel 1");
+                strcpy(channels[i].description,"Join to speak about Java Project");
+                channels[i].nbClientConnected = 0;
+              break;
+        
+            case 1:
+                strcpy(channels[i].name,"Channel 2");
+                strcpy(channels[i].description,"Join to speak about FAR Project");
+                channels[i].nbClientConnected = 0;
+              break;
+              
+            case 2:
+                strcpy(channels[i].name,"Channel 3");
+                strcpy(channels[i].description,"Join to speak about Swift Project");
+                channels[i].nbClientConnected = 0;
+              break;
+              
+            case 3:
+                strcpy(channels[i].name,"Channel 4");
+                strcpy(channels[i].description,"Join to speak about JS Project");
+                channels[i].nbClientConnected = 0;
+              break;
+              
+            default:
+              strcpy(channels[i].name,"Random");
+              strcpy(channels[i].description,"Join to speak about everything");
+              channels[i].nbClientConnected = 0;
+        }
+    }
+}
+
+/* Create thread which wait for client message and send it to all others clients */
 void *thread_func(void *arg){
 
     /* Get client username and socket */
@@ -195,7 +230,7 @@ int main(int argc, char *argv[]){
     /* Define some variables */
     int tmp;
     char username[MAX_NAME_LENGTH];
-    int rc;
+    int rc,sd;
 
     /* Define target (ip:port) with calling program parameters */
     struct addrinfo hints;
@@ -245,6 +280,8 @@ int main(int argc, char *argv[]){
     listen(dS,MAX_SOCKETS);
     printf("Start server on port : %s\n", argv[1]);
 
+    init_channels();
+
     while(1){
 
         /* Clean username buffer */
@@ -256,6 +293,27 @@ int main(int argc, char *argv[]){
 
         /* Accept the connexion from client */
         int socketCli = accept(dS, (struct sockaddr*)&addrCli,&lg);
+
+        char message[MAX_BUFFER_LENGTH]="";
+        for(int i = 0; i < MAX_CHANNELS; i++){
+            char nbC[2];
+            sprintf(nbC,"%d",channels[i].nbClientConnected);
+            char nbMax[2];
+            sprintf(nbMax,"%d",MAX_CLIENTS_BY_CHANNEL);
+
+            strcat(message,"\n\n");
+            strcat(message,"------ Channel list ------");
+            strcat(message,channels[i].name);
+            strcat(message," : [");
+            strcat(message,nbC);
+            strcat(message,"/");
+            strcat(message,nbMax);
+            strcat(message,"]");
+            strcat(message,"\n");
+            strcat(message,channels[i].description);
+            strcat(message,"\n\n");
+        }
+        strcat(message,"Enter the name of a channel you want to join : ");
 
         if(socketCli > 0){
             printf("\033[0;32mConnexion established with client : %s:%d \033[0m\n",inet_ntoa(addrCli.sin_addr),ntohs(addrCli.sin_port));
@@ -277,6 +335,21 @@ int main(int argc, char *argv[]){
                 pthread_t thread;
                 pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
             }
+
+            /* Send the channel list */
+            //sd = send(socketCli, &message, strlen(message),0);
+            //if(sd < 0){
+            //  printf("! Error sending the channel list to client !\n");
+            //}
+
+            /* Receive the chosen channel name */
+            //rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0);
+            //if(sd < 0){
+            //  printf("! Error receive the chosen channel by the client !\n");
+            //}
+
+            /* Connect the client to the chosen channel */
+            //connect_to_channel(socketCli,recv);
         }
     }
 
