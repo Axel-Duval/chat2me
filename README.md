@@ -15,13 +15,13 @@ A server relays text messages between two clients.
 
 - **Run**
 ```
- chat2me> ./server <chosen_port>
- chat2me> ./client <your_ip_address> <chosen_port>
+ chat2me/sprint1> ./server <chosen_port>
+ chat2me/sprint1> ./client <your_ip_address> <chosen_port>
 ```
 - **Compile**
 ```
-chat2me> gcc -o server server.c
-chat2me> gcc -o client client.c
+chat2me/sprint1> gcc -o server server.c
+chat2me/sprint1> gcc -o client client.c
 ```
 
 ## Sprint 2
@@ -31,13 +31,13 @@ A multi-threaded server and two multi-threaded clients
 
 - **Run**
 ```
- chat2me> ./server <chosen_port>
- chat2me> ./client <your_ip_address> <chosen_port>
+ chat2me/sprint2> ./server <chosen_port>
+ chat2me/sprint2> ./client <your_ip_address> <chosen_port>
 ```
 - **Compile**
 ```
-chat2me> gcc -o server server.c -lpthread
-chat2me> gcc -o client client.c -lpthread
+chat2me/sprint2> gcc -o server server.c -lpthread
+chat2me/sprint2> gcc -o client client.c -lpthread
 ```
 
   
@@ -49,13 +49,13 @@ A multi-threaded server and severals clients with usernames which can join or qu
 
 - **Run**
 ```
- chat2me> ./server <chosen_port>
- chat2me> ./client <your_ip_address> <chosen_port>
+ chat2me/sprint2_v2> ./server <chosen_port>
+ chat2me/sprint2_v2> ./client <your_ip_address> <chosen_port>
 ```
 - **Compile**
 ```
-chat2me> gcc -o server server.c -lpthread
-chat2me> gcc -o client client.c -lpthread
+chat2me/sprint2_v2> gcc -o server server.c -lpthread
+chat2me/sprint2_v2> gcc -o client client.c -lpthread
 ```
   
 
@@ -66,13 +66,13 @@ Files transfert
 
 - **Run**
 ```
- chat2me> ./server <chosen_port>
- chat2me> ./client <your_ip_address> <chosen_port>
+ chat2me/sprint3> ./server <chosen_port>
+ chat2me/sprint3> ./client <your_ip_address> <chosen_port>
 ```
 - **Compile**
 ```
-chat2me> gcc -o server server.c -lpthread
-chat2me> gcc -o client client.c -lpthread
+chat2me/sprint3> gcc -o server server.c -lpthread
+chat2me/sprint3> gcc -o client client.c -lpthread
 ```
   
 
