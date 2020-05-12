@@ -15,7 +15,7 @@
 */
 
 #define MAX_SOCKETS 10
-#define MAX_USERNAME_LENGTH 20
+#define MAX_NAME_LENGTH 20
 #define MAX_BUFFER_LENGTH 256
 #define JOINER_LENGTH 4
 #define JOINER " - "
@@ -30,11 +30,17 @@ int sockets[MAX_SOCKETS] = {0};
 /* Create struct to share socket with username to threads */
 struct sockets_struct
 {
-    char clientUsername[MAX_USERNAME_LENGTH];
+    char clientUsername[MAX_NAME_LENGTH];
     int socket;
 };
 struct sockets_struct clientStruct;
 
+struct channel_struct{
+	char name[MAX_NAME_LENGTH];
+	char description[MAX_BUFFER_LENGTH];
+	int nbClientConnected;
+};
+struct channel_struct channels[MAX_CHANNELS];
 
 /* Print socket state */
 void psockets(){
@@ -86,7 +92,7 @@ void *thread_func(void *arg){
 
     /* Get client username and socket */
     struct sockets_struct *args = (void *)arg;
-    char username[MAX_USERNAME_LENGTH];
+    char username[MAX_NAME_LENGTH];
     strcpy(username,args->clientUsername);
     int socketCli = args->socket;
 
@@ -94,7 +100,7 @@ void *thread_func(void *arg){
     char buffer[MAX_BUFFER_LENGTH];
     char joiner[JOINER_LENGTH];
     strcpy(joiner,JOINER);
-    char message[MAX_BUFFER_LENGTH + 4 + MAX_USERNAME_LENGTH];
+    char message[MAX_BUFFER_LENGTH + 4 + MAX_NAME_LENGTH];
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
 
     /* Define some int */
@@ -188,7 +194,7 @@ int main(int argc, char *argv[]){
 
     /* Define some variables */
     int tmp;
-    char username[MAX_USERNAME_LENGTH];
+    char username[MAX_NAME_LENGTH];
     int rc;
 
     /* Define target (ip:port) with calling program parameters */
