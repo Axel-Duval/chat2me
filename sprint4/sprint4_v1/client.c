@@ -17,7 +17,7 @@
 * Run the program : gcc -o client client.c -lpthread && ./client TARGET_IP PORT
 */
 
-#define MAX_USERNAME_LENGTH 20
+#define MAX_NAME_LENGTH 20
 #define MAX_BUFFER_LENGTH 256
 #define JOINER_LENGTH 4
 #define FILE_PROTOCOL_LENGTH 10
@@ -258,7 +258,7 @@ void *recvFile(void* dS){
 void *recvMsg(void* dS){
     /* Get server's socket */
     int* arg = dS;
-    char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_USERNAME_LENGTH];
+    char buffer[MAX_BUFFER_LENGTH + JOINER_LENGTH + MAX_NAME_LENGTH];
     int rc;
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
 
@@ -300,9 +300,9 @@ int main(int argc, char *argv[]){
     }
 
     /* Ask for username */
-    char username[MAX_USERNAME_LENGTH];
+    char username[MAX_NAME_LENGTH];
     printf("Choose your username : ");
-    fgets(username, MAX_USERNAME_LENGTH, stdin);
+    fgets(username, MAX_NAME_LENGTH, stdin);
 
     //* Define target (ip:port) with calling program parameters */
     struct addrinfo hints, *res, *p;
@@ -378,15 +378,35 @@ int main(int argc, char *argv[]){
     freeaddrinfo(res); 
 
     /* Send username to the server */
-    int sd;
+    int sd,rc;
     while(sd = send(dS,&username,strlen(username)-1,0) <= strlen(username)-2){
         if(sd == 0){
             /* Connexion lost */
             exit(1);
         }
     }
+
+    char channels[MAX_BUFFER_LENGTH];
+
+    /* Receive the channel list */
+    rc = recv(dS, &channels, strlen(channels), 0);
+    if(rc < 0){
+        printf("! Error receiving the channel list from server !\n");
+    }
+    printf("%s",channels);
+
+    /* Choose the channel the client want to join */
+    char channelChoice[MAX_NAME_LENGTH];
+    //FGETS QUI POSE PROBLEME
+    //fgets(channelChoice, sizeof(channelChoice) ,stdin);
     
-    /* Create 2 threads for recieve and send messages */
+    /* Send the choice to the server */
+    sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
+    if(sd < 0){
+        printf("! Error sending the chosen channel to server !\n");
+    }
+
+    /* Create 2 threads for receive and send messages */
     pthread_t sdM;
     pthread_t rcM;
     pthread_create(&sdM,0,sendMsg,&dS);

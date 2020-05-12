@@ -36,6 +36,7 @@ struct sockets_struct
 struct sockets_struct clientStruct;
 
 struct channel_struct{
+    int numChannel;
 	char name[MAX_NAME_LENGTH];
 	char description[MAX_BUFFER_LENGTH];
 	int nbClientConnected;
@@ -89,17 +90,17 @@ int remove_socket(int sockets[], int socket){
 
 void init_channels(){
     for (int i = 0; i < MAX_CHANNELS; i++){
+        channels[i].numChannel=i;
+        channels[i].nbClientConnected = 0;
         switch (i) {
             case 0:
                 strcpy(channels[i].name,"Channel 1");
                 strcpy(channels[i].description,"Join to speak about Java Project");
-                channels[i].nbClientConnected = 0;
               break;
         
             case 1:
                 strcpy(channels[i].name,"Channel 2");
                 strcpy(channels[i].description,"Join to speak about FAR Project");
-                channels[i].nbClientConnected = 0;
               break;
               
             case 2:
@@ -295,14 +296,15 @@ int main(int argc, char *argv[]){
         int socketCli = accept(dS, (struct sockaddr*)&addrCli,&lg);
 
         char message[MAX_BUFFER_LENGTH]="";
+        strcat(message,"\n\n");
+        strcat(message,"------ Channel list ------");
+        strcat(message,"\n");
         for(int i = 0; i < MAX_CHANNELS; i++){
             char nbC[2];
             sprintf(nbC,"%d",channels[i].nbClientConnected);
             char nbMax[2];
             sprintf(nbMax,"%d",MAX_CLIENTS_BY_CHANNEL);
 
-            strcat(message,"\n\n");
-            strcat(message,"------ Channel list ------");
             strcat(message,channels[i].name);
             strcat(message," : [");
             strcat(message,nbC);
@@ -320,7 +322,7 @@ int main(int argc, char *argv[]){
 
             /* Waiting for the username */
             while(rc = recv(socketCli, &username, sizeof(username), 0) < 0){
-                /* Error getting username, retry to recieve */                
+                /* Error getting username, retry to receive */
             }
 
             /* Add this new client to sockets tab */
@@ -337,18 +339,23 @@ int main(int argc, char *argv[]){
             }
 
             /* Send the channel list */
-            //sd = send(socketCli, &message, strlen(message),0);
-            //if(sd < 0){
-            //  printf("! Error sending the channel list to client !\n");
-            //}
+            sd = send(socketCli, &message, strlen(message),0);
+            if(sd < 0){
+              printf("! Error sending the channel list to client !\n");
+            }
+            printf("list sent");
 
             /* Receive the chosen channel name */
-            //rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0);
-            //if(sd < 0){
-            //  printf("! Error receive the chosen channel by the client !\n");
-            //}
+            char chosenChannel[MAX_NAME_LENGTH];
+            rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0);
+
+            printf("%s",chosenChannel);
+            if(rc < 0){
+              printf("! Error receive the chosen channel by the client !\n");
+            }
 
             /* Connect the client to the chosen channel */
+            //A FAIRE
             //connect_to_channel(socketCli,recv);
         }
     }
