@@ -63,6 +63,17 @@ chat2me> gcc -o client client.c -lpthread
 
 Files transfert
 
+
+- **Run**
+```
+ chat2me> ./server <chosen_port>
+ chat2me> ./client <your_ip_address> <chosen_port>
+```
+- **Compile**
+```
+chat2me> gcc -o server server.c -lpthread
+chat2me> gcc -o client client.c -lpthread
+```
   
 
 ## Sprint 4
