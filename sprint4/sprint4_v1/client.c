@@ -399,12 +399,34 @@ int main(int argc, char *argv[]){
     char channelChoice[MAX_NAME_LENGTH];
     //FGETS QUI POSE PROBLEME
     //fgets(channelChoice, sizeof(channelChoice) ,stdin);
-    
+
     /* Send the choice to the server */
     sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
     if(sd < 0){
         printf("! Error sending the chosen channel to server !\n");
     }
+
+    int repChannel;
+    rc = recv(dS, &repChannel, sizeof(repChannel), 0);
+    if(rc < 0){
+        printf("! Error receiving the response to know if the client is connected to the given channel !\n");
+    }
+
+    /* The server find an error to connect to the channel */
+    while(repChannel < 0){
+        printf("Error ! The channel doesn't exist or it is full !\n Enter the name of a channel you want to join : \n");
+
+        /* Choose an other channel */
+        //fgets(channelChoice, sizeof(channelChoice) ,stdin);
+
+        /* Send the choice to the server */
+        sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
+        if(sd < 0){
+            printf("! Error sending the chosen channel to server !\n");
+        }
+    }
+
+    printf("You are connected at %s",channelChoice);
 
     /* Create 2 threads for receive and send messages */
     pthread_t sdM;

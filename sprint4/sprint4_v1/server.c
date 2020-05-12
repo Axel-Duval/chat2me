@@ -31,6 +31,7 @@ int sockets[MAX_SOCKETS] = {0};
 struct sockets_struct
 {
     char clientUsername[MAX_NAME_LENGTH];
+    int numConnectedChannel;
     int socket;
 };
 struct sockets_struct clientStruct;
@@ -106,21 +107,27 @@ void init_channels(){
             case 2:
                 strcpy(channels[i].name,"Channel 3");
                 strcpy(channels[i].description,"Join to speak about Swift Project");
-                channels[i].nbClientConnected = 0;
               break;
               
             case 3:
                 strcpy(channels[i].name,"Channel 4");
                 strcpy(channels[i].description,"Join to speak about JS Project");
-                channels[i].nbClientConnected = 0;
               break;
               
             default:
               strcpy(channels[i].name,"Random");
               strcpy(channels[i].description,"Join to speak about everything");
-              channels[i].nbClientConnected = 0;
         }
     }
+}
+
+int check_channel(char name[]){
+    for(int i = 0; i < MAX_CHANNELS; i++){
+        if(channels[i].name == name){ //if the name is contained in the current channel name | strstr(channels[i].name, name) != NULL
+            return channels[i].numChannel;
+        }
+    }
+    return -1;
 }
 
 /* Create thread which wait for client message and send it to all others clients */
@@ -325,38 +332,47 @@ int main(int argc, char *argv[]){
                 /* Error getting username, retry to receive */
             }
 
+            /* Send the channel list */
+            sd = send(socketCli, &message, strlen(message),0);
+            if(sd < 0){
+              printf("! Error sending the channel list to client !\n");
+            }
+
+            /* Receive the chosen channel name */
+            char chosenChannel[MAX_NAME_LENGTH];
+            rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0);
+            if(rc < 0){
+              printf("! Error receive the chosen channel by the client !\n");
+            }
+
+            int chosenCh;
+            /* Check if the client can be connected to the chosen channel */
+            while(chosenCh=check_channel(chosenChannel) < 0){
+                /* Send the error message */
+                sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
+                if(sd < 0){
+                  printf("! Error sending the error channel message to client !\n");
+                }
+                while(rc = recv(socketCli, &chosenChannel, strlen(chosenChannel), 0) < 0){
+                    /* Error getting channel, retry to receive */
+                }
+            }
+
+            /* The channel is available (id in chosenCh) */
+
             /* Add this new client to sockets tab */
             if(add_socket(sockets,socketCli) != -1){
                 psockets();
 
                 /* Bind socket and username to structure */
                 strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
+                clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
                 clientStruct.socket = socketCli;
 
                 /* Create thread */
                 pthread_t thread;
                 pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
             }
-
-            /* Send the channel list */
-            sd = send(socketCli, &message, strlen(message),0);
-            if(sd < 0){
-              printf("! Error sending the channel list to client !\n");
-            }
-            printf("list sent");
-
-            /* Receive the chosen channel name */
-            char chosenChannel[MAX_NAME_LENGTH];
-            rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0);
-
-            printf("%s",chosenChannel);
-            if(rc < 0){
-              printf("! Error receive the chosen channel by the client !\n");
-            }
-
-            /* Connect the client to the chosen channel */
-            //A FAIRE
-            //connect_to_channel(socketCli,recv);
         }
     }
 
