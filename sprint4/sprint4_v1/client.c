@@ -386,19 +386,17 @@ int main(int argc, char *argv[]){
         }
     }
 
-    char channels[MAX_BUFFER_LENGTH];
-
+    char list[MAX_BUFFER_LENGTH];
     /* Receive the channel list */
-    rc = recv(dS, &channels, strlen(channels), 0);
-    if(rc < 0){
-        printf("! Error receiving the channel list from server !\n");
+    while (rc = recv(dS, &list, strlen(list), 0)<0){
     }
-    printf("%s",channels);
+    printf("%s",list);
 
     /* Choose the channel the client want to join */
     char channelChoice[MAX_NAME_LENGTH];
     //FGETS QUI POSE PROBLEME
-    //fgets(channelChoice, sizeof(channelChoice) ,stdin);
+    printf("Enter the name of a channel you want to join : ");
+    fgets(channelChoice, MAX_NAME_LENGTH, stdin);
 
     /* Send the choice to the server */
     sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
@@ -406,27 +404,30 @@ int main(int argc, char *argv[]){
         printf("! Error sending the chosen channel to server !\n");
     }
 
-    int repChannel;
-    rc = recv(dS, &repChannel, sizeof(repChannel), 0);
-    if(rc < 0){
-        printf("! Error receiving the response to know if the client is connected to the given channel !\n");
+    /*int repChannel;
+    while (rc = recv(dS, &repChannel, sizeof(repChannel), 0) < 0){
+        *//* Waiting for a response *//*
     }
 
-    /* The server find an error to connect to the channel */
+    *//* The server find an error to connect to the channel *//*
     while(repChannel < 0){
         printf("Error ! The channel doesn't exist or it is full !\n Enter the name of a channel you want to join : \n");
 
-        /* Choose an other channel */
+        *//* Choose an other channel *//*
         //fgets(channelChoice, sizeof(channelChoice) ,stdin);
+        strcpy(channelChoice,"Channel 1");
 
-        /* Send the choice to the server */
+        *//* Send the choice to the server *//*
         sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
         if(sd < 0){
             printf("! Error sending the chosen channel to server !\n");
         }
     }
 
-    printf("You are connected at %s",channelChoice);
+    if(repChannel >= 0){
+        printf("You are connected at %s",channelChoice);
+    }*/
+
 
     /* Create 2 threads for receive and send messages */
     pthread_t sdM;

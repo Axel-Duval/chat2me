@@ -121,9 +121,11 @@ void init_channels(){
     }
 }
 
+/* Check if the given channel exists or isn't full
+    Return its number if all it's ok, -1 otherwise */
 int check_channel(char name[]){
     for(int i = 0; i < MAX_CHANNELS; i++){
-        if(channels[i].name == name){ //if the name is contained in the current channel name | strstr(channels[i].name, name) != NULL
+        if(channels[i].name == name && channels[i].nbClientConnected < MAX_CLIENTS_BY_CHANNEL){ //if the name is contained in the current channel name | strstr(channels[i].name, name) != NULL
             return channels[i].numChannel;
         }
     }
@@ -322,13 +324,12 @@ int main(int argc, char *argv[]){
             strcat(message,channels[i].description);
             strcat(message,"\n\n");
         }
-        strcat(message,"Enter the name of a channel you want to join : ");
 
         if(socketCli > 0){
             printf("\033[0;32mConnexion established with client : %s:%d \033[0m\n",inet_ntoa(addrCli.sin_addr),ntohs(addrCli.sin_port));
 
             /* Waiting for the username */
-            while(rc = recv(socketCli, &username, sizeof(username), 0) < 0){
+            while(rc = recv(socketCli, &username, strlen(username), 0) < 0){
                 /* Error getting username, retry to receive */
             }
 
@@ -340,23 +341,24 @@ int main(int argc, char *argv[]){
 
             /* Receive the chosen channel name */
             char chosenChannel[MAX_NAME_LENGTH];
-            rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0);
-            if(rc < 0){
-              printf("! Error receive the chosen channel by the client !\n");
+            while(rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0)<0){
             }
 
-            int chosenCh;
-            /* Check if the client can be connected to the chosen channel */
+            printf("%s",chosenChannel);
+
+            /*int chosenCh;
+            printf("%d",check_channel(chosenChannel));
+            *//* Check if the client can be connected to the chosen channel *//*
             while(chosenCh=check_channel(chosenChannel) < 0){
-                /* Send the error message */
+                *//* Send the error message *//*
                 sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
                 if(sd < 0){
                   printf("! Error sending the error channel message to client !\n");
                 }
                 while(rc = recv(socketCli, &chosenChannel, strlen(chosenChannel), 0) < 0){
-                    /* Error getting channel, retry to receive */
+                    *//* Error getting channel, retry to receive *//*
                 }
-            }
+            }*/
 
             /* The channel is available (id in chosenCh) */
 
@@ -366,7 +368,7 @@ int main(int argc, char *argv[]){
 
                 /* Bind socket and username to structure */
                 strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
-                clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
+                //clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
                 clientStruct.socket = socketCli;
 
                 /* Create thread */
