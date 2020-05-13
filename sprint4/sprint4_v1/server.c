@@ -35,6 +35,7 @@ struct sockets_struct
     int socket;
 };
 struct sockets_struct clientStruct;
+struct sockets_struct allClients[MAX_SOCKETS] = {};
 
 struct channel_struct{
     int numChannel;
@@ -67,7 +68,7 @@ int add_socket(int sockets[], int socket){
     else{
         /* There is space for new socket */
         sockets[i] = socket;
-        return socket;
+        return i; //return socket;
     }
 }
 
@@ -85,6 +86,7 @@ int remove_socket(int sockets[], int socket){
     else{
         /* Socket found, need to remove it */
         sockets[i] = 0;
+        //don't need to remove in allClients[i] it will be overwrite if it's needed
         return 1;
     }
 }
@@ -124,19 +126,15 @@ void init_channels(){
 /* Check if the given channel exists or isn't full
     Return its number if all it's ok, -1 otherwise */
 int check_channel(char name[]){
-    printf("Debut fonction\n");
+    /* remove the last character */
+    char *chname = strchr(name, '\n');
+    *chname = '\0';
+
     for(int i = 0; i < MAX_CHANNELS; i++){
-        char *chname = strchr(name, '\n');
-        *chname = '\0';
-        printf("n : %s\n",name);
-        printf("N : %s\n",channels[i].name);
-        printf("Test var OK\n");
-        if(strcmp(channels[i].name,name) == 0 && channels[i].nbClientConnected < MAX_CLIENTS_BY_CHANNEL){ //if the name is contained in the current channel name | strstr(channels[i].name, name) != NULL
-            printf("Oui\n");
+        if(strcmp(channels[i].name,name) == 0 && channels[i].nbClientConnected < MAX_CLIENTS_BY_CHANNEL){
             return channels[i].numChannel;
         }
     }
-    printf("Non\n");
     return -1;
 }
 
@@ -148,6 +146,7 @@ void *thread_func(void *arg){
     char username[MAX_NAME_LENGTH];
     strcpy(username,args->clientUsername);
     int socketCli = args->socket;
+    int numChannel = args->numConnectedChannel;
 
     /* Create buffer for messages */
     char buffer[MAX_BUFFER_LENGTH];
@@ -198,9 +197,10 @@ void *thread_func(void *arg){
                 strcat(message,joiner);
                 strcat(message,buffer);
 
+                /* Add here send messsage to only sockets in the channel */
                 for(i = 0; i < MAX_SOCKETS; i++){
                     /* Only send on valid sockets and not to our client socket... */
-                    if(sockets[i] != 0 && sockets[i] != socketCli){
+                    if(sockets[i] != 0 && sockets[i] != socketCli && allClients[i].numConnectedChannel == numChannel){ //
                         /* Send message to client [i] */
                         while(sd = send(sockets[i], message, sizeof(message),0) <= 0){
                             /* Error sending message to client [i] */
@@ -372,6 +372,7 @@ int main(int argc, char *argv[]){
                 }
 
                 chosenCh = check_channel(chosenChannel);
+            
             }
 
             /* Send the num channel */
@@ -385,13 +386,15 @@ int main(int argc, char *argv[]){
             channels[chosenCh].nbClientConnected+=1;
 
             /* Add this new client to sockets tab */
-            if(add_socket(sockets,socketCli) != -1){
+            int indexNewSocket;
+            if(indexNewSocket = add_socket(sockets,socketCli) != -1){
                 psockets();
 
                 /* Bind socket and username to structure */
                 strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
                 clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
                 clientStruct.socket = socketCli;
+                allClients[indexNewSocket]=clientStruct;
 
                 /* Create thread */
                 pthread_t thread;

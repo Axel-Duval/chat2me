@@ -397,9 +397,9 @@ int main(int argc, char *argv[]){
 
     /* Choose the channel the client want to join */
     char channelChoice[MAX_NAME_LENGTH];
-    //FGETS QUI POSE PROBLEME
     printf("Enter the name of a channel you want to join : ");
     fgets(channelChoice, MAX_NAME_LENGTH, stdin);
+
     /* Send the choice to the server */
     sd = send(dS,&channelChoice,sizeof(channelChoice),0);
     if(sd < 0){
@@ -407,6 +407,7 @@ int main(int argc, char *argv[]){
     }
 
     int repChannel;
+    /* Receive the response from the server */
     rc = recv(dS, &repChannel, sizeof(repChannel), 0);
     if(rc < 0){
         printf("! Error receiving the answer of the server for the channel !\n");
@@ -421,10 +422,16 @@ int main(int argc, char *argv[]){
         memset(channelChoice, 0, MAX_NAME_LENGTH);
         fgets(channelChoice, MAX_NAME_LENGTH, stdin);
 
-        /* Send the choice to the server */
+        /* Send the new choice to the server */
         sd = send(dS,&channelChoice,sizeof(channelChoice),0);
         if(sd < 0){
             printf("! Error sending the chosen channel to server !\n");
+        }
+
+        /* Receive the response from the server */
+        rc = recv(dS, &repChannel, sizeof(repChannel), 0);
+        if(rc < 0){
+            printf("! Error receiving the answer of the server for the channel !\n");
         }
     }
 
