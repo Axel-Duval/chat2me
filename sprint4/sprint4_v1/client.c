@@ -18,7 +18,7 @@
 */
 
 #define MAX_NAME_LENGTH 20
-#define MAX_BUFFER_LENGTH 256
+#define MAX_BUFFER_LENGTH 356
 #define JOINER_LENGTH 4
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
@@ -166,6 +166,7 @@ void *sendMsg(void* dS){
         char *chfin = strchr(buffer, '\n');
         *chfin = '\0';
         if(strcmp(buffer,"fin") == 0){
+            //Deconnect client.
             printf("End of the communication ...\n");
             break;
         }
@@ -388,45 +389,48 @@ int main(int argc, char *argv[]){
 
     char list[MAX_BUFFER_LENGTH];
     /* Receive the channel list */
-    while (rc = recv(dS, &list, strlen(list), 0)<0){
+    rc = recv(dS, &list, sizeof(list), 0);
+    if(rc<0){
+        printf("! Error receiving the channel list !\n");
     }
-    printf("%s",list);
+    printf("%s\n",list);
 
     /* Choose the channel the client want to join */
     char channelChoice[MAX_NAME_LENGTH];
     //FGETS QUI POSE PROBLEME
     printf("Enter the name of a channel you want to join : ");
     fgets(channelChoice, MAX_NAME_LENGTH, stdin);
-
     /* Send the choice to the server */
-    sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
+    sd = send(dS,&channelChoice,sizeof(channelChoice),0);
     if(sd < 0){
         printf("! Error sending the chosen channel to server !\n");
     }
 
-    /*int repChannel;
-    while (rc = recv(dS, &repChannel, sizeof(repChannel), 0) < 0){
-        *//* Waiting for a response *//*
+    int repChannel;
+    rc = recv(dS, &repChannel, sizeof(repChannel), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
     }
 
-    *//* The server find an error to connect to the channel *//*
+    /* The server find an error to connect to the channel */
     while(repChannel < 0){
-        printf("Error ! The channel doesn't exist or it is full !\n Enter the name of a channel you want to join : \n");
+        printf("Error ! The channel doesn't exist or it is full !\n");
 
-        *//* Choose an other channel *//*
-        //fgets(channelChoice, sizeof(channelChoice) ,stdin);
-        strcpy(channelChoice,"Channel 1");
+        /* Choose an other channel */
+        printf("Enter the name of a channel you want to join : ");
+        memset(channelChoice, 0, MAX_NAME_LENGTH);
+        fgets(channelChoice, MAX_NAME_LENGTH, stdin);
 
-        *//* Send the choice to the server *//*
-        sd = send(dS,&channelChoice,strlen(channelChoice)-1,0);
+        /* Send the choice to the server */
+        sd = send(dS,&channelChoice,sizeof(channelChoice),0);
         if(sd < 0){
             printf("! Error sending the chosen channel to server !\n");
         }
     }
 
     if(repChannel >= 0){
-        printf("You are connected at %s",channelChoice);
-    }*/
+        printf("You are connected at %s\n",channelChoice);
+    }
 
 
     /* Create 2 threads for receive and send messages */

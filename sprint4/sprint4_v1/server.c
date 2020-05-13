@@ -16,7 +16,7 @@
 
 #define MAX_SOCKETS 10
 #define MAX_NAME_LENGTH 20
-#define MAX_BUFFER_LENGTH 256
+#define MAX_BUFFER_LENGTH 356
 #define JOINER_LENGTH 4
 #define JOINER " - "
 #define FILE_PROTOCOL_LENGTH 10
@@ -124,11 +124,19 @@ void init_channels(){
 /* Check if the given channel exists or isn't full
     Return its number if all it's ok, -1 otherwise */
 int check_channel(char name[]){
+    printf("Debut fonction\n");
     for(int i = 0; i < MAX_CHANNELS; i++){
-        if(channels[i].name == name && channels[i].nbClientConnected < MAX_CLIENTS_BY_CHANNEL){ //if the name is contained in the current channel name | strstr(channels[i].name, name) != NULL
+        char *chname = strchr(name, '\n');
+        *chname = '\0';
+        printf("n : %s\n",name);
+        printf("N : %s\n",channels[i].name);
+        printf("Test var OK\n");
+        if(strcmp(channels[i].name,name) == 0 && channels[i].nbClientConnected < MAX_CLIENTS_BY_CHANNEL){ //if the name is contained in the current channel name | strstr(channels[i].name, name) != NULL
+            printf("Oui\n");
             return channels[i].numChannel;
         }
     }
+    printf("Non\n");
     return -1;
 }
 
@@ -329,38 +337,52 @@ int main(int argc, char *argv[]){
             printf("\033[0;32mConnexion established with client : %s:%d \033[0m\n",inet_ntoa(addrCli.sin_addr),ntohs(addrCli.sin_port));
 
             /* Waiting for the username */
-            while(rc = recv(socketCli, &username, strlen(username), 0) < 0){
-                /* Error getting username, retry to receive */
+            rc = recv(socketCli, &username, sizeof(username), 0);
+            if (rc< 0){
+                printf("! Error receiving username from client !\n");
             }
 
             /* Send the channel list */
-            sd = send(socketCli, &message, strlen(message),0);
+            sd = send(socketCli, &message, sizeof(message),0);
             if(sd < 0){
-              printf("! Error sending the channel list to client !\n");
+                printf("! Error sending the channel list to client !\n");
             }
 
             /* Receive the chosen channel name */
             char chosenChannel[MAX_NAME_LENGTH];
-            while(rc = recv(socketCli, &chosenChannel, strlen(chosenChannel),0)<0){
+            rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel),0);
+            if(rc <0){
+                printf("! Error receiving chosen channel from client !\n");
             }
 
-            printf("%s",chosenChannel);
-
-            /*int chosenCh;
-            printf("%d",check_channel(chosenChannel));
-            *//* Check if the client can be connected to the chosen channel *//*
-            while(chosenCh=check_channel(chosenChannel) < 0){
-                *//* Send the error message *//*
+            int chosenCh;
+            chosenCh = check_channel(chosenChannel);
+            /* Check if the client can be connected to the chosen channel */
+            while(chosenCh < 0){
+                memset(chosenChannel, 0, MAX_NAME_LENGTH);
+                /* Send the error message */
                 sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
                 if(sd < 0){
                   printf("! Error sending the error channel message to client !\n");
                 }
-                while(rc = recv(socketCli, &chosenChannel, strlen(chosenChannel), 0) < 0){
-                    *//* Error getting channel, retry to receive *//*
+
+                rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel), 0);
+                if(rc < 0){
+                    printf("! Error receiving new chosen channel from client !\n");
                 }
-            }*/
+
+                chosenCh = check_channel(chosenChannel);
+            }
+
+            /* Send the num channel */
+            sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
+            if(sd < 0){
+              printf("! Error sending the error channel message to client !\n");
+            }
 
             /* The channel is available (id in chosenCh) */
+            printf("Client enter in the channel\n");
+            channels[chosenCh].nbClientConnected+=1;
 
             /* Add this new client to sockets tab */
             if(add_socket(sockets,socketCli) != -1){
@@ -368,7 +390,7 @@ int main(int argc, char *argv[]){
 
                 /* Bind socket and username to structure */
                 strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
-                //clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
+                clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
                 clientStruct.socket = socketCli;
 
                 /* Create thread */
