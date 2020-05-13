@@ -312,22 +312,53 @@ int main(int argc, char *argv[]){
         /* Accept the connexion from client */
         int socketCli = accept(dS, (struct sockaddr*)&addrCli,&lg);
 
+        /* Creation of the channels list */
         char message[MAX_BUFFER_LENGTH]="";
         strcat(message,"\n\n");
         strcat(message,"------ Channel list ------");
         strcat(message,"\n");
         for(int i = 0; i < MAX_CHANNELS; i++){
             char nbC[2];
-            sprintf(nbC,"%d",channels[i].nbClientConnected);
+            int nbCoInt = channels[i].nbClientConnected;
+            sprintf(nbC,"%d",nbCoInt);
             char nbMax[2];
             sprintf(nbMax,"%d",MAX_CLIENTS_BY_CHANNEL);
 
             strcat(message,channels[i].name);
-            strcat(message," : [");
-            strcat(message,nbC);
-            strcat(message,"/");
-            strcat(message,nbMax);
-            strcat(message,"]");
+            strcat(message," : ");
+
+            if(nbCoInt < MAX_CLIENTS_BY_CHANNEL-2){
+            //green : the channel isn't full
+                char nbCh[] = "\033[00;32m[";
+                strcat(nbCh,nbC);
+                strcat(nbCh,"/");
+                strcat(nbCh,nbMax);
+                strcat(nbCh,"]\033[0m");
+
+                strcat(message,nbCh);
+
+            } else if(nbCoInt >= MAX_CLIENTS_BY_CHANNEL-2 && nbCoInt < MAX_CLIENTS_BY_CHANNEL){
+            //orange : only a few places (2)
+                char nbCh[] = "\033[0;33m[";
+                strcat(nbCh,nbC);
+                strcat(nbCh,"/");
+                strcat(nbCh,nbMax);
+                strcat(nbCh,"]\033[0m");
+
+                strcat(message,nbCh);
+
+            } else {
+            //red : the channel is full
+                char nbCh[] = "\033[0;31m[";
+                strcat(nbCh,nbC);
+                strcat(nbCh,"/");
+                strcat(nbCh,nbMax);
+                strcat(nbCh,"]\033[0m");
+
+                strcat(message,nbCh);
+
+            }
+
             strcat(message,"\n");
             strcat(message,channels[i].description);
             strcat(message,"\n\n");
@@ -372,7 +403,7 @@ int main(int argc, char *argv[]){
                 }
 
                 chosenCh = check_channel(chosenChannel);
-            
+
             }
 
             /* Send the num channel */

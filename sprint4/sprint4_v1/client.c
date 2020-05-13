@@ -437,6 +437,7 @@ int main(int argc, char *argv[]){
 
     if(repChannel >= 0){
         printf("You are connected at %s\n",channelChoice);
+        printf("You can chat now !\n");
     }
 
 
