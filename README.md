@@ -77,11 +77,28 @@ chat2me/sprint3> gcc -o client client.c -lpthread
 ```
   
 
-## Sprint 4
+## Sprint 4 v1
+
+Connection to discussion channels
+
+
+- **Run**
+```
+ chat2me/sprint4/sprint4_v1> ./server <chosen_port>
+ chat2me/sprint4/sprint4_v1> ./client <your_ip_address> <chosen_port>
+```
+- **Compile**
+```
+chat2me/sprint4/sprint4_v1> gcc -o server server.c -lpthread
+chat2me/sprint4/sprint4_v1> gcc -o client client.c -lpthread
+```
+
+
+## Sprint 4 v2
 
 Management of discussion channels
 
-  
+
 
 ## Sprint 5
 
