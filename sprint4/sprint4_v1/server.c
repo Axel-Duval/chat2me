@@ -26,6 +26,7 @@
 
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
+int choiceChannel[MAX_SOCKETS] = {-1};
 
 /* Create struct to share socket with username to threads */
 struct sockets_struct
@@ -35,7 +36,6 @@ struct sockets_struct
     int socket;
 };
 struct sockets_struct clientStruct;
-struct sockets_struct allClients[MAX_SOCKETS] = {};
 
 struct channel_struct{
     int numChannel;
@@ -55,7 +55,7 @@ void psockets(){
 }
 
 /* Append new socket to sockets array */
-int add_socket(int sockets[], int socket){
+int add_socket(int sockets[], int socket, int chosenCh){
     int i = 0;
     while(i < MAX_SOCKETS && sockets[i] != 0){
         i++;
@@ -68,7 +68,8 @@ int add_socket(int sockets[], int socket){
     else{
         /* There is space for new socket */
         sockets[i] = socket;
-        return i; //return socket;
+        choiceChannel[i]=chosenCh;
+        return i; //return index of the socket;
     }
 }
 
@@ -86,7 +87,10 @@ int remove_socket(int sockets[], int socket){
     else{
         /* Socket found, need to remove it */
         sockets[i] = 0;
-        //don't need to remove in allClients[i] it will be overwrite if it's needed
+        int clientCh;
+        clientCh = choiceChannel[i];
+        channels[clientCh].nbClientConnected -= 1;
+        choiceChannel[i]=-1;
         return 1;
     }
 }
@@ -176,6 +180,13 @@ void *thread_func(void *arg){
         }
         else{
 
+            if(strcmp(buffer,"fin") == 0){
+                //Disconnect client.
+                remove_socket(sockets, socketCli);
+                printf("Client disconnected ...\n");
+                break;
+            }
+
             /* Switcher */
             if(strcmp(buffer, file_protocol) == 0){
                 printf("File protocol detected !\n");
@@ -200,7 +211,7 @@ void *thread_func(void *arg){
                 /* Add here send messsage to only sockets in the channel */
                 for(i = 0; i < MAX_SOCKETS; i++){
                     /* Only send on valid sockets and not to our client socket... */
-                    if(sockets[i] != 0 && sockets[i] != socketCli && allClients[i].numConnectedChannel == numChannel){ //
+                    if(sockets[i] != 0 && sockets[i] != socketCli && choiceChannel[i] == numChannel){ //
                         /* Send message to client [i] */
                         while(sd = send(sockets[i], message, sizeof(message),0) <= 0){
                             /* Error sending message to client [i] */
@@ -217,7 +228,7 @@ void *thread_func(void *arg){
             else if(is_file == 1){
                 for(i = 0; i < MAX_SOCKETS; i++){
                     /* Only send on valid sockets and not to our client socket... */
-                    if(sockets[i] != 0 && sockets[i] != socketCli){
+                    if(sockets[i] != 0 && sockets[i] != socketCli && choiceChannel[i] == numChannel){
                         /* Send message to client [i] */
                         while(sd = send(sockets[i], buffer, sizeof(buffer),0) <= 0){
                             /* Error sending message to client [i] */
@@ -418,14 +429,13 @@ int main(int argc, char *argv[]){
 
             /* Add this new client to sockets tab */
             int indexNewSocket;
-            if(indexNewSocket = add_socket(sockets,socketCli) != -1){
+            if(indexNewSocket = add_socket(sockets,socketCli,chosenCh) != -1){
                 psockets();
 
                 /* Bind socket and username to structure */
                 strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
                 clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
                 clientStruct.socket = socketCli;
-                allClients[indexNewSocket]=clientStruct;
 
                 /* Create thread */
                 pthread_t thread;

@@ -166,7 +166,16 @@ void *sendMsg(void* dS){
         char *chfin = strchr(buffer, '\n');
         *chfin = '\0';
         if(strcmp(buffer,"fin") == 0){
-            //Deconnect client.
+            //Disconnect client.
+            sd = send(*arg,&buffer,strlen(buffer),0);
+            if (sd < 0){
+                perror("! Error with sending 'fin' !");
+            }
+            //Send num channel
+            sd = send(*arg,&buffer,strlen(buffer),0);
+            if (sd < 0){
+                perror("! Error with sending 'fin' !");
+            }
             printf("End of the communication ...\n");
             break;
         }
@@ -438,6 +447,7 @@ int main(int argc, char *argv[]){
     if(repChannel >= 0){
         printf("You are connected at %s\n",channelChoice);
         printf("You can chat now !\n");
+        printf("To leave the app, enter 'fin' in your terminal.\n\n");
     }
 
 
