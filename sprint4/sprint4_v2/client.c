@@ -301,6 +301,86 @@ void *recvMsg(void* dS){
     }
 }
 
+int num_command_channel(char str[]){
+    char *chfin = strchr(str, '\n');
+    *chfin = '\0';
+
+    if(strcmp(str,"/enter") == 0){
+        return 1;
+    } else if(strcmp(str,"/add") == 0) {
+        return 2;
+    } else if (strcmp(str,"/delete") == 0) {
+        return 3;
+    } else {
+        return -1;
+    }
+}
+
+void enter_channel(int dS) {
+    int rc,sd;
+
+    /* Choose the channel the client want to join */
+    char channelChoice[MAX_NAME_LENGTH];
+    printf("Enter the name of a channel you want to join : ");
+    fgets(channelChoice, MAX_NAME_LENGTH, stdin);
+
+    /* Send the choice to the server */
+    sd = send(dS,&channelChoice,sizeof(channelChoice),0);
+    if(sd < 0){
+        printf("! Error sending the chosen channel to server !\n");
+    }
+
+    int repChannel;
+    /* Receive the response from the server */
+    rc = recv(dS, &repChannel, sizeof(repChannel), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+
+    /* The server find an error to connect to the channel */
+    while(repChannel < 0){
+        printf("Error ! The channel doesn't exist or it is full !\n");
+
+        /* Choose an other channel */
+        printf("Enter the name of a channel you want to join : ");
+        memset(channelChoice, 0, MAX_NAME_LENGTH);
+        fgets(channelChoice, MAX_NAME_LENGTH, stdin);
+
+        /* Send the new choice to the server */
+        sd = send(dS,&channelChoice,sizeof(channelChoice),0);
+        if(sd < 0){
+            printf("! Error sending the chosen channel to server !\n");
+        }
+
+        /* Receive the response from the server */
+        rc = recv(dS, &repChannel, sizeof(repChannel), 0);
+        if(rc < 0){
+            printf("! Error receiving the answer of the server for the channel !\n");
+        }
+    }
+
+    if(repChannel >= 0){
+        printf("You are connected at %s\n",channelChoice);
+        printf("You can chat now !\n");
+        printf("To leave the app, enter 'fin' in your terminal.\n\n");
+    }
+
+    /* Create 2 threads for receive and send messages */
+    pthread_t sdM;
+    pthread_t rcM;
+    pthread_create(&sdM,0,sendMsg,&dS);
+    pthread_create(&rcM,0,recvMsg,&dS);
+
+    /* Waiting for the end of communication to finish the program */
+    pthread_join(sdM,0);
+}
+
+void add_channel(){
+}
+
+void delete_channel(){
+}
+
 int main(int argc, char *argv[]){
 
     /* Checking args */
@@ -411,62 +491,43 @@ int main(int argc, char *argv[]){
     /* /delete to delete one channel */
     /* /update to update a channel */
 
+    /* Choose how to manage channel */
+    char choice[MAX_NAME_LENGTH];
+    sleep(1);
+    printf("Choose an alternative : \n '/enter' to join a channel \n '/add' to create a new channel \n '/delete' or '/update' a channel \n\n");
+    fgets(choice, MAX_NAME_LENGTH, stdin);
 
-    /* Choose the channel the client want to join */
-    char channelChoice[MAX_NAME_LENGTH];
-    printf("Enter the name of a channel you want to join : ");
-    fgets(channelChoice, MAX_NAME_LENGTH, stdin);
+    int numChoice = num_command_channel(choice);
+    while (numChoice == -1){
+        memset(choice, 0, MAX_NAME_LENGTH);
+        printf("This command is invalid. Please choose between : /enter, /add, /delete\n\n");
+        fgets(choice, MAX_NAME_LENGTH, stdin);
+        numChoice = num_command_channel(choice);
+    }
 
     /* Send the choice to the server */
-    sd = send(dS,&channelChoice,sizeof(channelChoice),0);
+    sd = send(dS,&numChoice,sizeof(numChoice),0);
     if(sd < 0){
-        printf("! Error sending the chosen channel to server !\n");
+        printf("! Error sending the chosen action to server !\n");
     }
 
-    int repChannel;
-    /* Receive the response from the server */
-    rc = recv(dS, &repChannel, sizeof(repChannel), 0);
-    if(rc < 0){
-        printf("! Error receiving the answer of the server for the channel !\n");
+    switch (numChoice){
+        case 1 :
+            enter_channel(dS);
+            break;
+
+        case 2 :
+            add_channel();
+            break;
+
+        case 3 :
+            delete_channel();
+            break;
+
+        default :
+            printf("! Error, invalid command enter by the client !\n");
+            exit(1);
     }
-
-    /* The server find an error to connect to the channel */
-    while(repChannel < 0){
-        printf("Error ! The channel doesn't exist or it is full !\n");
-
-        /* Choose an other channel */
-        printf("Enter the name of a channel you want to join : ");
-        memset(channelChoice, 0, MAX_NAME_LENGTH);
-        fgets(channelChoice, MAX_NAME_LENGTH, stdin);
-
-        /* Send the new choice to the server */
-        sd = send(dS,&channelChoice,sizeof(channelChoice),0);
-        if(sd < 0){
-            printf("! Error sending the chosen channel to server !\n");
-        }
-
-        /* Receive the response from the server */
-        rc = recv(dS, &repChannel, sizeof(repChannel), 0);
-        if(rc < 0){
-            printf("! Error receiving the answer of the server for the channel !\n");
-        }
-    }
-
-    if(repChannel >= 0){
-        printf("You are connected at %s\n",channelChoice);
-        printf("You can chat now !\n");
-        printf("To leave the app, enter 'fin' in your terminal.\n\n");
-    }
-
-
-    /* Create 2 threads for receive and send messages */
-    pthread_t sdM;
-    pthread_t rcM;
-    pthread_create(&sdM,0,sendMsg,&dS);
-    pthread_create(&rcM,0,recvMsg,&dS);
-
-    /* Waiting for the end of communication to finish the program */
-    pthread_join(sdM,0);  
 
     /* Close connexion */
     close(dS);

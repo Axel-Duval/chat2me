@@ -245,7 +245,70 @@ void *thread_func(void *arg){
     }
     pthread_exit(NULL);
 }
- 
+
+void enter_channel(char username[], int socketCli){
+    int rc,sd;
+
+    /* Receive the chosen channel name */
+    char chosenChannel[MAX_NAME_LENGTH];
+    rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel),0);
+    if(rc <0){
+        printf("! Error receiving chosen channel from client !\n");
+    }
+
+    int chosenCh;
+    chosenCh = check_channel(chosenChannel);
+    /* Check if the client can be connected to the chosen channel */
+    while(chosenCh < 0){
+        memset(chosenChannel, 0, MAX_NAME_LENGTH);
+        /* Send the error message */
+        sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
+        if(sd < 0){
+          printf("! Error sending the error channel message to client !\n");
+        }
+
+        rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel), 0);
+        if(rc < 0){
+            printf("! Error receiving new chosen channel from client !\n");
+        }
+
+        chosenCh = check_channel(chosenChannel);
+
+    }
+
+    /* Send the num channel */
+    sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
+    if(sd < 0){
+      printf("! Error sending the error channel message to client !\n");
+    }
+
+    /* The channel is available (id in chosenCh) */
+    printf("Client enter in the channel\n");
+    channels[chosenCh].nbClientConnected+=1;
+
+    /* Add this new client to sockets tab */
+    int indexNewSocket;
+    if(indexNewSocket = add_socket(sockets,socketCli,chosenCh) != -1){
+        psockets();
+
+        /* Bind socket and username to structure */
+        strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
+        clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
+        clientStruct.socket = socketCli;
+
+        /* Create thread */
+        pthread_t thread;
+        pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
+    }
+}
+
+void add_channel(){
+
+}
+
+void delete_channel(){
+
+}
 
 /* MAIN */
 int main(int argc, char *argv[]){
@@ -396,56 +459,29 @@ int main(int argc, char *argv[]){
             /* else if : /delete to delete one channel */
             /* else : /update to update a channel */
 
-            /* Receive the chosen channel name */
-            char chosenChannel[MAX_NAME_LENGTH];
-            rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel),0);
+            /* Receive the chosen command number */
+            int numChoice;
+            rc = recv(socketCli, &numChoice, sizeof(numChoice),0);
             if(rc <0){
                 printf("! Error receiving chosen channel from client !\n");
             }
 
-            int chosenCh;
-            chosenCh = check_channel(chosenChannel);
-            /* Check if the client can be connected to the chosen channel */
-            while(chosenCh < 0){
-                memset(chosenChannel, 0, MAX_NAME_LENGTH);
-                /* Send the error message */
-                sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
-                if(sd < 0){
-                  printf("! Error sending the error channel message to client !\n");
-                }
+            switch (numChoice){
+                case 1 :
+                    enter_channel(username,socketCli);
+                    break;
 
-                rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel), 0);
-                if(rc < 0){
-                    printf("! Error receiving new chosen channel from client !\n");
-                }
+                case 2 :
+                    add_channel();
+                    break;
 
-                chosenCh = check_channel(chosenChannel);
+                case 3 :
+                    delete_channel();
+                    break;
 
-            }
-
-            /* Send the num channel */
-            sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
-            if(sd < 0){
-              printf("! Error sending the error channel message to client !\n");
-            }
-
-            /* The channel is available (id in chosenCh) */
-            printf("Client enter in the channel\n");
-            channels[chosenCh].nbClientConnected+=1;
-
-            /* Add this new client to sockets tab */
-            int indexNewSocket;
-            if(indexNewSocket = add_socket(sockets,socketCli,chosenCh) != -1){
-                psockets();
-
-                /* Bind socket and username to structure */
-                strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
-                clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
-                clientStruct.socket = socketCli;
-
-                /* Create thread */
-                pthread_t thread;
-                pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
+                default :
+                    printf("! Error, invalid command enter by the client !\n");
+                    exit(1);
             }
         }
     }
