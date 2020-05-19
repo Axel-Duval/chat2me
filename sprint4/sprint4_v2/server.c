@@ -26,7 +26,12 @@
 
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
+/* Global client channel choices array initialize with -1 */
 int choiceChannel[MAX_SOCKETS] = {-1};
+/* Global number of socket */
+int nbChannels = 0;
+/* Global boolean (1 : true / 0 :false) to know if we have to return into the menu after an action (command /enter ...) */
+int returnMenu = 1;
 
 /* Create struct to share socket with username to threads */
 struct sockets_struct
@@ -96,7 +101,7 @@ int remove_socket(int sockets[], int socket){
 }
 
 void init_channels(){
-    for (int i = 0; i < MAX_CHANNELS; i++){
+    for (int i = 0; i < 5; i++){
         channels[i].numChannel=i;
         channels[i].nbClientConnected = 0;
         switch (i) {
@@ -125,6 +130,9 @@ void init_channels(){
               strcpy(channels[i].description,"Join to speak about everything");
         }
     }
+
+    nbChannels = 5;
+
 }
 
 /* Check if the given channel exists or isn't full
@@ -184,6 +192,7 @@ void *thread_func(void *arg){
                 //Disconnect client.
                 remove_socket(sockets, socketCli);
                 printf("Client disconnected ...\n");
+                returnMenu=0;
                 break;
             }
 
@@ -302,7 +311,51 @@ void enter_channel(char username[], int socketCli){
     }
 }
 
-void add_channel(){
+void add_channel(int socketCli){
+    int rc,sd;
+    int resp;
+    if(nbChannels < MAX_CHANNELS){
+        resp = 0;
+    } else {
+        resp = -1;
+    }
+
+    /* Send the possibility to add a new channel */
+    sd = send(socketCli, &resp, sizeof(resp),0);
+    if(sd < 0){
+        printf("! Error sending the add channel message to client !\n");
+    }
+
+    /* Receive the chosen channel name or /abort */
+    char chosenNameChannel[MAX_NAME_LENGTH];
+    rc = recv(socketCli, &chosenNameChannel, sizeof(chosenNameChannel),0);
+    if(rc <0){
+        printf("! Error receiving new chosen name channel from client !\n");
+    }
+
+    /* The client choose to stop adding new channel */
+    if(strcmp(chosenNameChannel,"/abort")){
+        //return to the menu
+    } else {
+        /* Receive the chosen channel description */
+        char chosenDescriptionChannel[MAX_BUFFER_LENGTH];
+        rc = recv(socketCli, &chosenDescriptionChannel, sizeof(chosenDescriptionChannel),0);
+        if(rc <0){
+            printf("! Error receiving new chosen name channel from client !\n");
+        }
+
+        struct channel_struct newChannel;
+        newChannel.numChannel = nbChannels;
+        strcpy(newChannel.name,chosenNameChannel);
+        strcpy(newChannel.description,chosenDescriptionChannel);
+        newChannel.nbClientConnected = 0;
+
+        channels[nbChannels] = newChannel;
+
+        nbChannels+=1;
+
+        printf("New channel created\n");
+    }
 
 }
 
@@ -312,6 +365,8 @@ void delete_channel(){
 
 /* MAIN */
 int main(int argc, char *argv[]){
+
+    returnMenu = 1;
 
     /* Checking args */
     if(argc != 2){
@@ -453,35 +508,38 @@ int main(int argc, char *argv[]){
                 printf("! Error sending the channel list to client !\n");
             }
 
-            /* TODO : Add channels management -> create associated methods */
-            /* if : /enter to choose the channel to communicate */
-            /* else if : /add to add a new channel */
-            /* else if : /delete to delete one channel */
-            /* else : /update to update a channel */
+            while(returnMenu == 1){
 
-            /* Receive the chosen command number */
-            int numChoice;
-            rc = recv(socketCli, &numChoice, sizeof(numChoice),0);
-            if(rc <0){
-                printf("! Error receiving chosen channel from client !\n");
-            }
+                /* TODO : Add channels management -> create associated methods */
+                /* if : /enter to choose the channel to communicate */
+                /* else if : /add to add a new channel */
+                /* else if : /delete to delete one channel */
+                /* else : /update to update a channel */
 
-            switch (numChoice){
-                case 1 :
-                    enter_channel(username,socketCli);
-                    break;
+                /* Receive the chosen command number */
+                int numChoice;
+                rc = recv(socketCli, &numChoice, sizeof(numChoice),0);
+                if(rc <0){
+                    printf("! Error receiving chosen channel from client !\n");
+                }
 
-                case 2 :
-                    add_channel();
-                    break;
+                switch (numChoice){
+                    case 1 :
+                        enter_channel(username,socketCli);
+                        break;
 
-                case 3 :
-                    delete_channel();
-                    break;
+                    case 2 :
+                        add_channel(socketCli);
+                        break;
 
-                default :
-                    printf("! Error, invalid command enter by the client !\n");
-                    exit(1);
+                    case 3 :
+                        delete_channel();
+                        break;
+
+                    default :
+                        printf("! Error, invalid command enter by the client !\n");
+                        exit(1);
+                }
             }
         }
     }

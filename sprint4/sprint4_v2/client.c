@@ -26,6 +26,8 @@
 /* Frequency for sending file chunks => 200Hz */
 #define FREQUENCY 50000000L
 
+/* Global boolean (1 : true / 0 :false) to know if we have to return into the menu after an action (command /enter ...) */
+int returnMenu = 1;
 
 void *sendFile(void* dS){
     /* Get server's socket and declare some variables */
@@ -177,6 +179,7 @@ void *sendMsg(void* dS){
                 perror("! Error with sending 'fin' !");
             }
             printf("End of the communication ...\n");
+            returnMenu=0;
             break;
         }
 
@@ -375,7 +378,59 @@ void enter_channel(int dS) {
     pthread_join(sdM,0);
 }
 
-void add_channel(){
+void add_channel(int dS){
+    int rc,sd;
+
+    int resp;
+    /* Receive the server response to add new channel */
+    rc = recv(dS, &resp, sizeof(resp), 0);
+    if(rc<0){
+        printf("! Error receiving the response to add new channel !\n");
+    }
+
+    if(resp==-1){
+        printf("Error ! You can't add a new channel, max_channels is reached !\n");
+
+    } else if (resp!=0){
+        perror("Error receiving response to add a new channel from the server.");
+        exit(1);
+    } else { //add a new channel is allowed
+        printf("You choose to create a new channel.\n Enter /abort to return to the menu or enter the name of the new channel : \n");
+
+        /* Choose the name of the new channel the client want to create */
+        char channelNameChoice[MAX_NAME_LENGTH];
+        fgets(channelNameChoice, MAX_NAME_LENGTH, stdin);
+
+        char *chfin = strchr(channelNameChoice, '\n');
+        *chfin = '\0';
+
+        if(strcmp(channelNameChoice,"/abort") == 0){
+            //return to the menu
+        } else {
+            /* Send the name to the server */
+            sd = send(dS,&channelNameChoice,sizeof(channelNameChoice),0);
+            if(sd < 0){
+                printf("! Error sending the chosen name channel to server !\n");
+            }
+
+            /* Choose the description of the new channel the client want to create */
+            printf("Enter the description of the new channel : \n");
+            char channelDescriptionChoice[MAX_BUFFER_LENGTH];
+            fgets(channelDescriptionChoice, MAX_BUFFER_LENGTH, stdin);
+
+            /* Send the description to the server */
+            sd = send(dS,&channelDescriptionChoice,sizeof(channelDescriptionChoice),0);
+            if(sd < 0){
+                printf("! Error sending the chosen description channel to server !\n");
+            }
+
+            printf("New channel created ! \n");
+
+            /* Return to the menu */
+
+        }
+
+    }
 }
 
 void delete_channel(){
@@ -383,6 +438,7 @@ void delete_channel(){
 
 int main(int argc, char *argv[]){
 
+    returnMenu=1;
     /* Checking args */
     if(argc != 3){
         printf("! I need to be call like -> :program SERVER_IP PORT !\n");
@@ -484,49 +540,52 @@ int main(int argc, char *argv[]){
     }
     printf("%s\n",list);
 
+    while (returnMenu == 1){
 
-    /* TODO : Add choice to manage channels */
-    /* /enter to choose the channel to communicate */
-    /* /add to add a new channel */
-    /* /delete to delete one channel */
-    /* /update to update a channel */
+        /* TODO : Add choice to manage channels */
+        /* /enter to choose the channel to communicate */
+        /* /add to add a new channel */
+        /* /delete to delete one channel */
+        /* /update to update a channel */
 
-    /* Choose how to manage channel */
-    char choice[MAX_NAME_LENGTH];
-    sleep(1);
-    printf("Choose an alternative : \n '/enter' to join a channel \n '/add' to create a new channel \n '/delete' or '/update' a channel \n\n");
-    fgets(choice, MAX_NAME_LENGTH, stdin);
-
-    int numChoice = num_command_channel(choice);
-    while (numChoice == -1){
-        memset(choice, 0, MAX_NAME_LENGTH);
-        printf("This command is invalid. Please choose between : /enter, /add, /delete\n\n");
+        /* Choose how to manage channel */
+        char choice[MAX_NAME_LENGTH];
+        sleep(1);
+        printf("Choose an alternative : \n '/enter' to join a channel \n '/add' to create a new channel \n '/delete' or '/update' a channel \n\n");
         fgets(choice, MAX_NAME_LENGTH, stdin);
-        numChoice = num_command_channel(choice);
-    }
 
-    /* Send the choice to the server */
-    sd = send(dS,&numChoice,sizeof(numChoice),0);
-    if(sd < 0){
-        printf("! Error sending the chosen action to server !\n");
-    }
+        int numChoice = num_command_channel(choice);
+        while (numChoice == -1){
+            memset(choice, 0, MAX_NAME_LENGTH);
+            printf("This command is invalid. Please choose between : /enter, /add, /delete\n\n");
+            fgets(choice, MAX_NAME_LENGTH, stdin);
+            numChoice = num_command_channel(choice);
+        }
 
-    switch (numChoice){
-        case 1 :
-            enter_channel(dS);
-            break;
+        /* Send the choice to the server */
+        sd = send(dS,&numChoice,sizeof(numChoice),0);
+        if(sd < 0){
+            printf("! Error sending the chosen action to server !\n");
+        }
 
-        case 2 :
-            add_channel();
-            break;
+        switch (numChoice){
+            case 1 :
+                enter_channel(dS);
+                break;
 
-        case 3 :
-            delete_channel();
-            break;
+            case 2 :
+                add_channel(dS);
+                break;
 
-        default :
-            printf("! Error, invalid command enter by the client !\n");
-            exit(1);
+            case 3 :
+                delete_channel();
+                break;
+
+            default :
+                printf("! Error, invalid command enter by the client !\n");
+                exit(1);
+        }
+
     }
 
     /* Close connexion */
