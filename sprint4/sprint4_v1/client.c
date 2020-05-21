@@ -402,7 +402,9 @@ int main(int argc, char *argv[]){
     if(rc<0){
         printf("! Error receiving the channel list !\n");
     }
-    printf("%s\n",list);
+    puts(list);
+
+    sleep(1);
 
     /* Choose the channel the client want to join */
     char channelChoice[MAX_NAME_LENGTH];
