@@ -286,115 +286,120 @@ void *thread_chan(void *arg){
 
     int sd,rc;
 
-        /* Creation of the channels list */
-        char message[MAX_BUFFER_LENGTH]="";
-        strcat(message,"\n\n");
-        strcat(message,"------ Channel list ------");
+    /* Creation of the channels list */
+    char message[MAX_BUFFER_LENGTH]="";
+    strcat(message,"\n\n");
+    strcat(message,"------ Channel list ------");
+    strcat(message,"\n");
+    for(int i = 0; i < MAX_CHANNELS; i++){
+        char nbC[2];
+        int nbCoInt = channels[i].nbClientConnected;
+        sprintf(nbC,"%d",nbCoInt);
+        char nbMax[2];
+        sprintf(nbMax,"%d",channels[i].maxClients);
+
+        strcat(message,channels[i].name);
+        strcat(message," : ");
+
+        if(nbCoInt < channels[i].maxClients-2){
+        //green : the channel isn't full
+            char nbCh[] = "\033[00;32m[";
+            strcat(nbCh,nbC);
+            strcat(nbCh,"/");
+            strcat(nbCh,nbMax);
+            strcat(nbCh,"]\033[0m");
+
+            strcat(message,nbCh);
+
+        } else if(nbCoInt >= channels[i].maxClients-2 && nbCoInt < channels[i].maxClients){
+        //orange : only a few places (2)
+            char nbCh[] = "\033[0;33m[";
+            strcat(nbCh,nbC);
+            strcat(nbCh,"/");
+            strcat(nbCh,nbMax);
+            strcat(nbCh,"]\033[0m");
+
+            strcat(message,nbCh);
+
+        } else {
+        //red : the channel is full
+            char nbCh[] = "\033[0;31m[";
+            strcat(nbCh,nbC);
+            strcat(nbCh,"/");
+            strcat(nbCh,nbMax);
+            strcat(nbCh,"]\033[0m");
+
+            strcat(message,nbCh);
+
+        }
+
         strcat(message,"\n");
-        for(int i = 0; i < MAX_CHANNELS; i++){
-            char nbC[2];
-            int nbCoInt = channels[i].nbClientConnected;
-            sprintf(nbC,"%d",nbCoInt);
-            char nbMax[2];
-            sprintf(nbMax,"%d",channels[i].maxClients);
+        strcat(message,channels[i].description);
+        strcat(message,"\n\n");
+    }
 
-            strcat(message,channels[i].name);
-            strcat(message," : ");
+    /* Send the channel list */
+    sd = send(socketCli, &message, sizeof(message),0);
+    if(sd < 0){
+        printf("! Error sending the channel list to client !\n");
+    }
 
-            if(nbCoInt < channels[i].maxClients-2){
-            //green : the channel isn't full
-                char nbCh[] = "\033[00;32m[";
-                strcat(nbCh,nbC);
-                strcat(nbCh,"/");
-                strcat(nbCh,nbMax);
-                strcat(nbCh,"]\033[0m");
+    /* Receive the chosen channel name */
+    char chosenChannel[MAX_NAME_LENGTH];
+    rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel),0);
+    if(rc <0){
+        printf("! Error receiving chosen channel from client !\n");
+    }
 
-                strcat(message,nbCh);
+    printf("%s\n",chosenChannel);
 
-            } else if(nbCoInt >= channels[i].maxClients-2 && nbCoInt < channels[i].maxClients){
-            //orange : only a few places (2)
-                char nbCh[] = "\033[0;33m[";
-                strcat(nbCh,nbC);
-                strcat(nbCh,"/");
-                strcat(nbCh,nbMax);
-                strcat(nbCh,"]\033[0m");
-
-                strcat(message,nbCh);
-
-            } else {
-            //red : the channel is full
-                char nbCh[] = "\033[0;31m[";
-                strcat(nbCh,nbC);
-                strcat(nbCh,"/");
-                strcat(nbCh,nbMax);
-                strcat(nbCh,"]\033[0m");
-
-                strcat(message,nbCh);
-
-            }
-
-            strcat(message,"\n");
-            strcat(message,channels[i].description);
-            strcat(message,"\n\n");
-        }
-
-        /* Send the channel list */
-        sd = send(socketCli, &message, sizeof(message),0);
-        if(sd < 0){
-            printf("! Error sending the channel list to client !\n");
-        }
-
-        /* Receive the chosen channel name */
-        char chosenChannel[MAX_NAME_LENGTH];
-        rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel),0);
-        if(rc <0){
-            printf("! Error receiving chosen channel from client !\n");
-        }
-
-        printf("%s\n",chosenChannel);
-
-        int chosenCh;
-        chosenCh = check_channel(chosenChannel);
-        /* Check if the client can be connected to the chosen channel */
-        while(chosenCh < 0){
-            memset(chosenChannel, 0, MAX_NAME_LENGTH);
-            /* Send the error message */
-            sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
-            if(sd < 0){
-              printf("! Error sending the error channel message to client !\n");
-            }
-
-            rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel), 0);
-            if(rc < 0){
-                printf("! Error receiving new chosen channel from client !\n");
-            }
-
-            chosenCh = check_channel(chosenChannel);
-
-        }
-
-        /* Send the num channel */
+    int chosenCh;
+    chosenCh = check_channel(chosenChannel);
+    /* Check if the client can be connected to the chosen channel */
+    while(chosenCh < 0){
+        memset(chosenChannel, 0, MAX_NAME_LENGTH);
+        /* Send the error message */
         sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
         if(sd < 0){
           printf("! Error sending the error channel message to client !\n");
         }
 
-        /* The channel is available (id in chosenCh) */
-        printf("Client enter in the channel\n");
-
-        /* Add this new client to sockets tab */
-        int indexNewSocket;
-        if(indexNewSocket = add_socket(sockets,socketCli,chosenCh) != -1){
-            psockets();
-
-            /* Bind socket and username to structure */
-            clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
-
-            /* Create thread */
-            pthread_t thread;
-            pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
+        rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel), 0);
+        if(rc < 0){
+            printf("! Error receiving new chosen channel from client !\n");
         }
 
+        chosenCh = check_channel(chosenChannel);
+
+    }
+
+    /* Send the num channel */
+    sd = send(socketCli, &chosenCh, sizeof(chosenCh),0);
+    if(sd < 0){
+      printf("! Error sending the error channel message to client !\n");
+    }
+
+    /* The channel is available (id in chosenCh) */
+    printf("Client enter in the channel\n");
+
+    /* Add this new client to sockets tab */
+    int indexNewSocket;
+    if(indexNewSocket = add_socket(sockets,socketCli,chosenCh) != -1){
+        psockets();
+
+        /* Bind socket and username to structure */
+        clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
+
+        /* Create thread */
+        pthread_t thread;
+        pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
+
+        if (pthread_join(thread, 0) != 0){
+            perror("Erreur dans l'attente du thread");
+            exit(1);
+        }
+    }
+    pthread_exit(NULL);
 }
 
 
@@ -492,7 +497,7 @@ int main(int argc, char *argv[]){
             /* Create thread */
             pthread_t thread;
             pthread_create(&thread, NULL, thread_chan, (void *)&clientStruct);
-
+            pthread_join(thread, 0);
         }
     }
 
