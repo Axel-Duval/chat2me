@@ -18,7 +18,8 @@
 */
 
 #define MAX_NAME_LENGTH 20
-#define MAX_BUFFER_LENGTH 356
+#define MAX_BUFFER_LENGTH 256
+#define MAX_LIST_LENGTH 1200
 #define JOINER_LENGTH 4
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
@@ -313,6 +314,8 @@ int num_command_channel(char str[]){
         return 2;
     } else if (strcmp(str,"/delete") == 0) {
         return 3;
+    } else if (strcmp(str,"/update") == 0) {
+       return 4;
     } else {
         return -1;
     }
@@ -386,14 +389,14 @@ void add_channel(int dS){
 
     char *chfin = strchr(channelName, '\n');
     *chfin = '\0';
-    if(strcmp(channelName,"/abort") == 0){
-        //doing nothing
-    }else {
-        /* Send the name to the server */
-        sd = send(dS,&channelName,sizeof(channelName),0);
-        if(sd < 0){
-            printf("! Error sending the chosen channel to server !\n");
-        }
+
+    /* Send the name to the server */
+    sd = send(dS,&channelName,sizeof(channelName),0);
+    if(sd < 0){
+        printf("! Error sending the chosen channel to server !\n");
+    }
+
+    if(strcmp(channelName,"/abort") != 0){
 
         printf("Choose a description :\n");
         char channelDescription[MAX_NAME_LENGTH];
@@ -409,6 +412,13 @@ void add_channel(int dS){
         fgets(maxCliStr, 4, stdin);
 
         int maxCli = atoi(maxCliStr);
+        while(maxCli == 0){
+            puts("Invalid number of max clients.\n");
+            puts("Choose a max of clients :\n");
+            fgets(maxCliStr, 4, stdin);
+            maxCli = atoi(maxCliStr);
+        }
+
         sd = send(dS,&maxCli,sizeof(maxCli),0);
         if (sd < 0){
             perror("! Error with sending 'fin' !");
@@ -421,7 +431,7 @@ void add_channel(int dS){
 void delete_channel(int dS){
     int sd,rc;
 
-    char list[MAX_BUFFER_LENGTH];
+    char list[MAX_LIST_LENGTH];
     /* Receive the channel list from the server */
     rc = recv(dS, &list, sizeof(list), 0);
     if(rc < 0){
@@ -438,7 +448,53 @@ void delete_channel(int dS){
         perror("! Error with sending 'fin' !");
     }
 
-    printf("Channel deleted \n");
+    char resp[MAX_BUFFER_LENGTH];
+    /* Receive the response from the server */
+    rc = recv(dS, &resp, sizeof(list), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+    printf("%s\n",resp);
+}
+
+void update_channel(int dS) {
+    int sd,rc;
+
+    /*char list[MAX_LIST_LENGTH];
+    *//* Receive the channel list from the server *//*
+    rc = recv(dS, &list, sizeof(list), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+    printf("%s\n",list);*/
+
+    printf("Choose a channel to update :\n");
+    char channelName[MAX_NAME_LENGTH];
+    fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+    sd = send(dS,&channelName,sizeof(channelName),0);
+    if (sd < 0){
+        perror("! Error with sending 'fin' !");
+    }
+
+    char resp[MAX_BUFFER_LENGTH];
+    /* Receive the response from the server */
+    rc = recv(dS, &resp, sizeof(resp), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+    printf("%s\n",resp);
+
+    printf("Choose the attribute(s) to change :\n '/name', '/description', '/maxClients', '/all'\n");
+
+    memset(channelName,0,MAX_NAME_LENGTH);
+    printf("Choose a new name :\n");
+    fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+    sd = send(dS,&channelName,sizeof(channelName),0);
+    if (sd < 0){
+        perror("! Error with sending 'fin' !");
+    }
 }
 
 int main(int argc, char *argv[]){
@@ -544,14 +600,14 @@ int main(int argc, char *argv[]){
 
     while(continueMenu==1){
 
-        char list[MAX_BUFFER_LENGTH];
+        char list[MAX_LIST_LENGTH];
         /* Receive the channel list */
         rc = recv(dS, &list, sizeof(list), 0);
         if(rc<0){
             printf("! Error receiving the channel list !\n");
         }
         printf("%s\n",list);
-        memset(list,0,MAX_BUFFER_LENGTH);
+        memset(list,0,MAX_LIST_LENGTH);
 
         /* Choose how to manage channel */
         char choice[MAX_NAME_LENGTH];
@@ -584,6 +640,10 @@ int main(int argc, char *argv[]){
 
             case 3 :
                 delete_channel(dS);
+                break;
+
+            case 4 :
+                update_channel(dS);
                 break;
 
             default :
