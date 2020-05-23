@@ -93,11 +93,37 @@ chat2me/sprint4/sprint4_v1> gcc -o server server.c -lpthread
 chat2me/sprint4/sprint4_v1> gcc -o client client.c -lpthread
 ```
 
+## Sprint 4 v1bis
+
+Connection to discussion channels with adding a new thread
+
+
+- **Run**
+```
+ chat2me/sprint4/sprint4_v1bis> ./server <chosen_port>
+ chat2me/sprint4/sprint4_v1bis> ./client <your_ip_address> <chosen_port>
+```
+- **Compile**
+```
+chat2me/sprint4/sprint4_v1bis> gcc -o server server.c -lpthread
+chat2me/sprint4/sprint4_v1bis> gcc -o client client.c -lpthread
+```
 
 ## Sprint 4 v2
 
 Management of discussion channels
 
+
+- **Run**
+```
+ chat2me/sprint4/sprint4_v2> ./server <chosen_port>
+ chat2me/sprint4/sprint4_v2> ./client <your_ip_address> <chosen_port>
+```
+- **Compile**
+```
+chat2me/sprint4/sprint4_v2> gcc -o server server.c -lpthread
+chat2me/sprint4/sprint4_v2> gcc -o client client.c -lpthread
+```
 
 
 ## Sprint 5
