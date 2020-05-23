@@ -36,7 +36,7 @@ void *sendFile(void* dS){
     char filename[MAX_BUFFER_LENGTH];
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
     DIR* directory;
-	FILE* file = NULL;    
+	FILE* file = NULL;
 
     /* Clear buffers */
     memset(filename, 0, MAX_BUFFER_LENGTH);
@@ -52,7 +52,7 @@ void *sendFile(void* dS){
     if (directory != NULL){
         struct dirent * dir_f;
         printf("---------------------FILES-----------------------\n");
-        while ((dir_f = readdir(directory)) != NULL){					
+        while ((dir_f = readdir(directory)) != NULL){
             if(strcmp(dir_f->d_name,".")!=0 && strcmp(dir_f->d_name,"..")!=0){
                 printf("%s\n", dir_f->d_name);
             }
@@ -64,7 +64,7 @@ void *sendFile(void* dS){
         perror("Directory empty or doesn't exist !\n");
         pthread_exit(NULL);
     }
-    
+
     /* Asking for valid filename */
     while(file == NULL){
         /* Asking for a file */
@@ -159,7 +159,7 @@ void *sendMsg(void* dS){
     while(1){
         /* Clean the buffer */
         memset(buffer, 0, strlen(buffer));
-        
+
         /* Get the message to send */
         fgets(buffer, MAX_BUFFER_LENGTH, stdin);
 
@@ -178,6 +178,7 @@ void *sendMsg(void* dS){
                 perror("! Error with sending 'fin' !");
             }
             printf("End of the communication ...\n");
+            continueMenu=0;
             break;
         }
 
@@ -292,7 +293,7 @@ void *recvMsg(void* dS){
             pthread_t rcF;
             pthread_create(&rcF,0,recvFile,arg);
             pthread_join(rcF,0);
-            
+
 		}
         /* Client recieve simple text message */
         else{
@@ -386,39 +387,35 @@ void add_channel(int dS){
     char *chfin = strchr(channelName, '\n');
     *chfin = '\0';
     if(strcmp(channelName,"/abort") == 0){
-        //Abort.
-        sd = send(dS,&channelName,sizeof(channelName),0);
-        if (sd < 0){
-            perror("! Error with sending 'fin' !");
-        }
+        //doing nothing
     }else {
         /* Send the name to the server */
         sd = send(dS,&channelName,sizeof(channelName),0);
         if(sd < 0){
             printf("! Error sending the chosen channel to server !\n");
         }
+
+        printf("Choose a description :\n");
+        char channelDescription[MAX_NAME_LENGTH];
+        fgets(channelDescription, MAX_NAME_LENGTH, stdin);
+
+        sd = send(dS,&channelDescription,sizeof(channelDescription),0);
+        if (sd < 0){
+            perror("! Error with sending 'fin' !");
+        }
+
+        printf("Choose a max of clients :\n");
+        char maxCliStr[4];
+        fgets(maxCliStr, 4, stdin);
+
+        int maxCli = atoi(maxCliStr);
+        sd = send(dS,&maxCli,sizeof(maxCli),0);
+        if (sd < 0){
+            perror("! Error with sending 'fin' !");
+        }
+
+        printf("New channel created !\n");
     }
-
-    printf("Choose a description :\n");
-    char channelDescription[MAX_NAME_LENGTH];
-    fgets(channelDescription, MAX_NAME_LENGTH, stdin);
-
-    sd = send(dS,&channelDescription,sizeof(channelDescription),0);
-    if (sd < 0){
-        perror("! Error with sending 'fin' !");
-    }
-
-    printf("Choose a max of clients :\n");
-    char maxCliStr[4];
-    fgets(maxCliStr, 4, stdin);
-
-    int maxCli = atoi(maxCliStr);
-    sd = send(dS,&maxCli,sizeof(maxCli),0);
-    if (sd < 0){
-        perror("! Error with sending 'fin' !");
-    }
-
-    printf("New channel created !\n");
 }
 
 void delete_channel(int dS){
@@ -473,7 +470,7 @@ int main(int argc, char *argv[]){
 
     p = res;
     int dS;
-      
+
     if (p->ai_family == AF_INET) { // IPv4
         printf("IPV4\n");
 
@@ -482,8 +479,8 @@ int main(int argc, char *argv[]){
         aS.sin_family = AF_INET;
         aS.sin_port = htons(atoi(argv[2]));
 
-        inet_pton(AF_INET, argv[1], &(aS.sin_addr)); 
-        socklen_t lgA = sizeof(struct sockaddr_in); 
+        inet_pton(AF_INET, argv[1], &(aS.sin_addr));
+        socklen_t lgA = sizeof(struct sockaddr_in);
 
         /* Create stream socket with IPv4 domain and IP protocol */
         dS = socket(PF_INET, SOCK_STREAM, 0);
@@ -493,7 +490,7 @@ int main(int argc, char *argv[]){
         }
 
         /* Open connexion */
-        int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+        int con = connect(dS, (struct sockaddr *) &aS, lgA);
 
         if (con<0){
             perror("! Can't find the target !");
@@ -508,8 +505,8 @@ int main(int argc, char *argv[]){
         aS.sin6_family = AF_INET6;
         aS.sin6_port = htons(atoi(argv[2]));
 
-        inet_pton(AF_INET6, argv[1], &(aS.sin6_addr)); 
-        socklen_t lgA = sizeof(struct sockaddr_in6); 
+        inet_pton(AF_INET6, argv[1], &(aS.sin6_addr));
+        socklen_t lgA = sizeof(struct sockaddr_in6);
 
         /* Create stream socket with IPv6 domain and IP protocol */
         dS = socket(PF_INET6, SOCK_STREAM, 0);
@@ -519,7 +516,7 @@ int main(int argc, char *argv[]){
         }
 
         /* Open connexion */
-        int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+        int con = connect(dS, (struct sockaddr *) &aS, lgA);
 
         if (con<0){
             perror("! Can't find the target !");
@@ -528,7 +525,7 @@ int main(int argc, char *argv[]){
     }
 
     /*Free memory*/
-    freeaddrinfo(res); 
+    freeaddrinfo(res);
 
     /* Send username to the server */
     int sd,rc;
@@ -539,15 +536,6 @@ int main(int argc, char *argv[]){
         }
     }
 
-    char list[MAX_BUFFER_LENGTH];
-    /* Receive the channel list */
-    rc = recv(dS, &list, sizeof(list), 0);
-    if(rc<0){
-        printf("! Error receiving the channel list !\n");
-    }
-    printf("%s\n",list);
-
-
     /* TODO : Add choice to manage channels */
     /* /enter to choose the channel to communicate */
     /* /add to add a new channel */
@@ -555,6 +543,16 @@ int main(int argc, char *argv[]){
     /* /update to update a channel */
 
     while(continueMenu==1){
+
+        char list[MAX_BUFFER_LENGTH];
+        /* Receive the channel list */
+        rc = recv(dS, &list, sizeof(list), 0);
+        if(rc<0){
+            printf("! Error receiving the channel list !\n");
+        }
+        printf("%s\n",list);
+        memset(list,0,MAX_BUFFER_LENGTH);
+
         /* Choose how to manage channel */
         char choice[MAX_NAME_LENGTH];
         sleep(1);

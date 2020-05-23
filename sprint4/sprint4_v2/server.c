@@ -177,6 +177,8 @@ void *thread_func(void *arg){
     strcpy(username,args->clientUsername);
     int socketCli = args->socket;
 
+    continueMenu=1;
+
     /* The number of the channel the client is connected in */
     int numChannel = args->numConnectedChannel;
     int index = get_index_in_array(numChannel);
@@ -213,6 +215,7 @@ void *thread_func(void *arg){
             if(strcmp(buffer,"fin") == 0){
                 //Disconnect client.
                 remove_socket(sockets, socketCli,numChannel);
+                continueMenu=0;
                 break;
             }
 
@@ -410,6 +413,7 @@ void *thread_chan(void *arg){
 
         int sd,rc;
 
+    while(continueMenu==1){
         /* Creation of the channels list */
         char message[MAX_BUFFER_LENGTH]="";
         strcat(message,"\n\n");
@@ -467,8 +471,8 @@ void *thread_chan(void *arg){
         if(sd < 0){
             printf("! Error sending the channel list to client !\n");
         }
+        memset(message,0,MAX_BUFFER_LENGTH);
 
-    while(continueMenu==1){
         /* Receive the chosen command number */
         int numChoice;
         rc = recv(socketCli, &numChoice, sizeof(numChoice),0);
