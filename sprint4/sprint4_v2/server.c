@@ -352,19 +352,23 @@ void add_channel(int socketCli){
         printf("! Error receiving chosen channel from client !\n");
     }
 
+    /* If the client don't want to abort */
     if(strcmp(chosenName,"/abort") != 0){
+        /* Receive the new description */
         char chosenDescription[MAX_BUFFER_LENGTH];
         rc = recv(socketCli, &chosenDescription, sizeof(chosenDescription),0);
         if(rc <0){
             printf("! Error receiving chosen channel from client !\n");
         }
 
+        /* Receive the max clients */
         int nbMaxCli;
         rc = recv(socketCli, &nbMaxCli, sizeof(nbMaxCli),0);
         if(rc <0){
             printf("! Error receiving chosen channel from client !\n");
         }
 
+        /* Create a new channel */
         struct channel_struct newChan;
         newChan.numChannel=nbChannels;
         strcpy(newChan.name,chosenName);
@@ -372,6 +376,7 @@ void add_channel(int socketCli){
         newChan.maxClients=nbMaxCli;
         newChan.nbClientConnected=0;
 
+         /* Add it in the channels list */
         channels[nbChannels]=newChan;
         nbChannels+=1;
 
@@ -380,8 +385,10 @@ void add_channel(int socketCli){
     }
 }
 
+/* Method to delete a given numChannel to the channels list */
 void delete_in_array(int numChannel){
     int i=numChannel;
+    /* Replace the deleted channel by the next ones */
     while(i<nbChannels){
         channels[i]=channels[i+1];
         if(i!=nbChannels-1){
@@ -397,6 +404,7 @@ void delete_channel(int socketCli){
     char message[MAX_LIST_LENGTH]="";
     int i;
 
+    /* Show the channel names */
     strcat(message,"\n\n");
     strcat(message,"------ Channel list ------");
     strcat(message,"\n");
@@ -419,8 +427,7 @@ void delete_channel(int socketCli){
         printf("! Error receiving chosen channel from client !\n");
     }
 
-    //TODO : remove channel, how to manage sockets[] ?, how to manage clients connected in ?
-
+    /* Check if chosen channel exists */
     int numCh = check_channel(chosenName);
     char resp[MAX_BUFFER_LENGTH];
     if(numCh < 0){
@@ -444,6 +451,8 @@ void delete_channel(int socketCli){
 void update_attr_channel(char chosenName[], int numChannel, int socketCli){
     int rc, sd;
 
+    /* Switch case of client choice */
+    /* Change name */
     if(strcmp(chosenName,"/name")==0){
         char channelName[MAX_NAME_LENGTH];
         rc = recv(socketCli,&channelName,sizeof(channelName),0);
@@ -457,7 +466,9 @@ void update_attr_channel(char chosenName[], int numChannel, int socketCli){
 
         printf("Channel name is updated!\n");
 
-    } else if(strcmp(chosenName,"/description")==0){
+    }
+    /* Change Description */
+    else if(strcmp(chosenName,"/description")==0){
         char channelDescription[MAX_BUFFER_LENGTH];
         rc = recv(socketCli,&channelDescription,sizeof(channelDescription),0);
         if (rc < 0){
@@ -471,7 +482,9 @@ void update_attr_channel(char chosenName[], int numChannel, int socketCli){
 
         printf("Channel description is updated!\n");
 
-    } else if(strcmp(chosenName,"/maxClients")==0){
+    }
+    /* Change max clients */
+    else if(strcmp(chosenName,"/maxClients")==0){
         int channelMaxCli;
         rc = recv(socketCli,&channelMaxCli,sizeof(channelMaxCli),0);
         if (rc < 0){
@@ -482,7 +495,7 @@ void update_attr_channel(char chosenName[], int numChannel, int socketCli){
 
         printf("Channel max clients is updated!\n");
 
-    } else {
+    } else { /* Error */
         printf("! Error, invalid command !\n");
     }
 
@@ -499,13 +512,14 @@ void update_channel(int socketCli){
         printf("! Error receiving chosen channel from client !\n");
     }
 
+    /* Check if the channel exists */
     int numCh = check_channel(chosenName);
     char resp[MAX_BUFFER_LENGTH];
     int canUp;
-    if(numCh < 0){
+    if(numCh < 0){ //if channel doesn't exist
         canUp = -1;
         strcat(resp,"Channel doesn't exist");
-    } else if(channels[numCh].nbClientConnected != 0){
+    } else if(channels[numCh].nbClientConnected != 0){ //if it contains clients
         canUp = 0;
         strcat(resp,"You can't update a channel with clients connected in.");
     } else {
@@ -516,9 +530,10 @@ void update_channel(int socketCli){
     /* Send the response to update a channel */
     sd = send(socketCli, &canUp, sizeof(canUp),0);
     if(sd < 0){
-        printf("! Error sending the resp to remove a channel to client !\n");
+        printf("! Error sending the resp to update a channel to client !\n");
     }
 
+    /* Update channel if it can be updated */
     if(canUp==1){
         memset(chosenName,0,MAX_NAME_LENGTH);
         rc = recv(socketCli, &chosenName, sizeof(chosenName),0);

@@ -383,6 +383,8 @@ void enter_channel(int dS) {
 
 void add_channel(int dS){
     int sd;
+
+    /* Choose the new name */
     printf("You choose to add a new channel !\nChoose a name (or /abort) :\n");
     char channelName[MAX_NAME_LENGTH];
     fgets(channelName, MAX_NAME_LENGTH, stdin);
@@ -396,8 +398,10 @@ void add_channel(int dS){
         printf("! Error sending the chosen channel to server !\n");
     }
 
+    /* If client don't abort, continue to add */
     if(strcmp(channelName,"/abort") != 0){
 
+        /* Choose the new description */
         printf("Choose a description :\n");
         char channelDescription[MAX_NAME_LENGTH];
         fgets(channelDescription, MAX_NAME_LENGTH, stdin);
@@ -407,11 +411,12 @@ void add_channel(int dS){
             perror("! Error with sending 'fin' !");
         }
 
+        /* Choose the new max clients */
         printf("Choose a max of clients :\n");
         char maxCliStr[4];
         fgets(maxCliStr, 4, stdin);
 
-        int maxCli = atoi(maxCliStr);
+        int maxCli = atoi(maxCliStr); /* Convert to int */
         while(maxCli == 0){
             puts("Invalid number of max clients.\n");
             puts("Choose a max of clients :\n");
@@ -439,6 +444,7 @@ void delete_channel(int dS){
     }
     printf("%s\n",list);
 
+    /* Choose the channel name */
     printf("Choose a channel to delete :\n");
     char channelName[MAX_NAME_LENGTH];
     fgets(channelName, MAX_NAME_LENGTH, stdin);
@@ -459,6 +465,9 @@ void delete_channel(int dS){
 
 void update_attr_channel(char chosenName[], int dS){
     int sd;
+
+    /* Switch case of client command choice */
+    /* Change name */
     if(strcmp(chosenName,"/name")==0){
          printf("Choose a new name : \n");
          char channelName[MAX_NAME_LENGTH];
@@ -471,7 +480,9 @@ void update_attr_channel(char chosenName[], int dS){
 
          printf("Channel name is updated!\n");
 
-    } else if(strcmp(chosenName,"/description")==0){
+    }
+    /* Change description */
+    else if(strcmp(chosenName,"/description")==0){
         printf("Choose a new description : \n");
         char channelDescription[MAX_BUFFER_LENGTH];
         fgets(channelDescription, MAX_BUFFER_LENGTH, stdin);
@@ -483,7 +494,9 @@ void update_attr_channel(char chosenName[], int dS){
 
         printf("Channel description is updated!\n");
 
-    } else if(strcmp(chosenName,"/maxClients")==0){
+    }
+    /* Change max clients */
+    else if(strcmp(chosenName,"/maxClients")==0){
         printf("Choose a new max clients : \n");
         char channelMaxCliStr[4];
         fgets(channelMaxCliStr, sizeof(channelMaxCliStr), stdin);
@@ -505,7 +518,9 @@ void update_attr_channel(char chosenName[], int dS){
 
         printf("Channel max clients is updated!\n");
 
-    } else {
+    }
+    /* Error */
+    else {
         printf("! Error, invalid command !\n");
     }
 
@@ -514,6 +529,7 @@ void update_attr_channel(char chosenName[], int dS){
 void update_channel(int dS) {
     int sd,rc;
 
+    /* Channel name choice */
     printf("Choose a channel to update :\n");
     char channelName[MAX_NAME_LENGTH];
     fgets(channelName, MAX_NAME_LENGTH, stdin);
@@ -543,6 +559,7 @@ void update_channel(int dS) {
         char *chfin = strchr(channelName, '\n');
         *chfin = '\0';
 
+        /* Send the command */
         sd = send(dS,&channelName,sizeof(channelName),0);
         if (sd < 0){
             perror("! Error with sending the chosen command to update !");
@@ -647,12 +664,6 @@ int main(int argc, char *argv[]){
             exit(1);
         }
     }
-
-    /* TODO : Add choice to manage channels */
-    /* /enter to choose the channel to communicate */
-    /* /add to add a new channel */
-    /* /delete to delete one channel */
-    /* /update to update a channel */
 
     while(continueMenu==1){
 
