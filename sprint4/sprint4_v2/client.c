@@ -18,7 +18,8 @@
 */
 
 #define MAX_NAME_LENGTH 20
-#define MAX_BUFFER_LENGTH 356
+#define MAX_BUFFER_LENGTH 256
+#define MAX_LIST_LENGTH 1200
 #define JOINER_LENGTH 4
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
@@ -26,6 +27,7 @@
 /* Frequency for sending file chunks => 200Hz */
 #define FREQUENCY 50000000L
 
+int continueMenu=1;
 
 void *sendFile(void* dS){
     /* Get server's socket and declare some variables */
@@ -35,7 +37,7 @@ void *sendFile(void* dS){
     char filename[MAX_BUFFER_LENGTH];
     char file_protocol[FILE_PROTOCOL_LENGTH] = FILE_PROTOCOL;
     DIR* directory;
-	FILE* file = NULL;    
+	FILE* file = NULL;
 
     /* Clear buffers */
     memset(filename, 0, MAX_BUFFER_LENGTH);
@@ -51,7 +53,7 @@ void *sendFile(void* dS){
     if (directory != NULL){
         struct dirent * dir_f;
         printf("---------------------FILES-----------------------\n");
-        while ((dir_f = readdir(directory)) != NULL){					
+        while ((dir_f = readdir(directory)) != NULL){
             if(strcmp(dir_f->d_name,".")!=0 && strcmp(dir_f->d_name,"..")!=0){
                 printf("%s\n", dir_f->d_name);
             }
@@ -63,7 +65,7 @@ void *sendFile(void* dS){
         perror("Directory empty or doesn't exist !\n");
         pthread_exit(NULL);
     }
-    
+
     /* Asking for valid filename */
     while(file == NULL){
         /* Asking for a file */
@@ -158,7 +160,7 @@ void *sendMsg(void* dS){
     while(1){
         /* Clean the buffer */
         memset(buffer, 0, strlen(buffer));
-        
+
         /* Get the message to send */
         fgets(buffer, MAX_BUFFER_LENGTH, stdin);
 
@@ -177,6 +179,7 @@ void *sendMsg(void* dS){
                 perror("! Error with sending 'fin' !");
             }
             printf("End of the communication ...\n");
+            continueMenu=0;
             break;
         }
 
@@ -291,7 +294,7 @@ void *recvMsg(void* dS){
             pthread_t rcF;
             pthread_create(&rcF,0,recvFile,arg);
             pthread_join(rcF,0);
-            
+
 		}
         /* Client recieve simple text message */
         else{
@@ -311,6 +314,8 @@ int num_command_channel(char str[]){
         return 2;
     } else if (strcmp(str,"/delete") == 0) {
         return 3;
+    } else if (strcmp(str,"/update") == 0) {
+       return 4;
     } else {
         return -1;
     }
@@ -365,6 +370,7 @@ void enter_channel(int dS) {
         printf("To leave the app, enter 'fin' in your terminal.\n\n");
     }
 
+    continueMenu=0;
     /* Create 2 threads for receive and send messages */
     pthread_t sdM;
     pthread_t rcM;
@@ -375,10 +381,176 @@ void enter_channel(int dS) {
     pthread_join(sdM,0);
 }
 
-void add_channel(){
+void add_channel(int dS){
+    int sd;
+    printf("You choose to add a new channel !\nChoose a name (or /abort) :\n");
+    char channelName[MAX_NAME_LENGTH];
+    fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+    char *chfin = strchr(channelName, '\n');
+    *chfin = '\0';
+
+    /* Send the name to the server */
+    sd = send(dS,&channelName,sizeof(channelName),0);
+    if(sd < 0){
+        printf("! Error sending the chosen channel to server !\n");
+    }
+
+    if(strcmp(channelName,"/abort") != 0){
+
+        printf("Choose a description :\n");
+        char channelDescription[MAX_NAME_LENGTH];
+        fgets(channelDescription, MAX_NAME_LENGTH, stdin);
+
+        sd = send(dS,&channelDescription,sizeof(channelDescription),0);
+        if (sd < 0){
+            perror("! Error with sending 'fin' !");
+        }
+
+        printf("Choose a max of clients :\n");
+        char maxCliStr[4];
+        fgets(maxCliStr, 4, stdin);
+
+        int maxCli = atoi(maxCliStr);
+        while(maxCli == 0){
+            puts("Invalid number of max clients.\n");
+            puts("Choose a max of clients :\n");
+            fgets(maxCliStr, 4, stdin);
+            maxCli = atoi(maxCliStr);
+        }
+
+        sd = send(dS,&maxCli,sizeof(maxCli),0);
+        if (sd < 0){
+            perror("! Error with sending 'fin' !");
+        }
+
+        printf("New channel created !\n");
+    }
 }
 
-void delete_channel(){
+void delete_channel(int dS){
+    int sd,rc;
+
+    char list[MAX_LIST_LENGTH];
+    /* Receive the channel list from the server */
+    rc = recv(dS, &list, sizeof(list), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+    printf("%s\n",list);
+
+    printf("Choose a channel to delete :\n");
+    char channelName[MAX_NAME_LENGTH];
+    fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+    sd = send(dS,&channelName,sizeof(channelName),0);
+    if (sd < 0){
+        perror("! Error with sending 'fin' !");
+    }
+
+    char resp[MAX_BUFFER_LENGTH];
+    /* Receive the response from the server */
+    rc = recv(dS, &resp, sizeof(list), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+    printf("%s\n",resp);
+}
+
+void update_attr_channel(char chosenName[], int dS){
+    int sd;
+    if(strcmp(chosenName,"/name")==0){
+         printf("Choose a new name : \n");
+         char channelName[MAX_NAME_LENGTH];
+         fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+         sd = send(dS,&channelName,sizeof(channelName),0);
+         if (sd < 0){
+             perror("! Error with sending new name for updated channel !");
+         }
+
+         printf("Channel name is updated!\n");
+
+    } else if(strcmp(chosenName,"/description")==0){
+        printf("Choose a new description : \n");
+        char channelDescription[MAX_BUFFER_LENGTH];
+        fgets(channelDescription, MAX_BUFFER_LENGTH, stdin);
+
+        sd = send(dS,&channelDescription,sizeof(channelDescription),0);
+        if (sd < 0){
+         perror("! Error with sending new description for updated channel !");
+        }
+
+        printf("Channel description is updated!\n");
+
+    } else if(strcmp(chosenName,"/maxClients")==0){
+        printf("Choose a new max clients : \n");
+        char channelMaxCliStr[4];
+        fgets(channelMaxCliStr, sizeof(channelMaxCliStr), stdin);
+
+        int channelMaxCli = atoi(channelMaxCliStr);
+        while(channelMaxCli==0){
+            printf("Invalid max clients\n");
+            printf("Choose a new max clients : \n");
+            memset(channelMaxCliStr,0,4);
+            fgets(channelMaxCliStr, sizeof(channelMaxCliStr), stdin);
+
+            channelMaxCli = atoi(channelMaxCliStr);
+        }
+
+        sd = send(dS,&channelMaxCli,sizeof(channelMaxCli),0);
+        if (sd < 0){
+         perror("! Error with sending new max clients for updated channel !");
+        }
+
+        printf("Channel max clients is updated!\n");
+
+    } else {
+        printf("! Error, invalid command !\n");
+    }
+
+}
+
+void update_channel(int dS) {
+    int sd,rc;
+
+    printf("Choose a channel to update :\n");
+    char channelName[MAX_NAME_LENGTH];
+    fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+    sd = send(dS,&channelName,sizeof(channelName),0);
+    if (sd < 0){
+        perror("! Error with sending 'fin' !");
+    }
+
+    int canUp;
+    /* Receive the response from the server */
+    rc = recv(dS, &canUp, sizeof(canUp), 0);
+    if(rc < 0){
+        printf("! Error receiving the answer of the server for the channel !\n");
+    }
+
+    if(canUp < 0){
+        printf("The channel doesn't exist !\n");
+    } else if (canUp == 0){
+        printf("You can't update the channel if clients are connected in !\n");
+    } else {
+        printf("Choose the attribute(s) to change :\n '/name', '/description', '/maxClients'\n");
+
+        memset(channelName,0,MAX_NAME_LENGTH);
+        fgets(channelName, MAX_NAME_LENGTH, stdin);
+
+        char *chfin = strchr(channelName, '\n');
+        *chfin = '\0';
+
+        sd = send(dS,&channelName,sizeof(channelName),0);
+        if (sd < 0){
+            perror("! Error with sending the chosen command to update !");
+        }
+
+        update_attr_channel(channelName,dS);
+    }
+
 }
 
 int main(int argc, char *argv[]){
@@ -410,7 +582,7 @@ int main(int argc, char *argv[]){
 
     p = res;
     int dS;
-      
+
     if (p->ai_family == AF_INET) { // IPv4
         printf("IPV4\n");
 
@@ -419,8 +591,8 @@ int main(int argc, char *argv[]){
         aS.sin_family = AF_INET;
         aS.sin_port = htons(atoi(argv[2]));
 
-        inet_pton(AF_INET, argv[1], &(aS.sin_addr)); 
-        socklen_t lgA = sizeof(struct sockaddr_in); 
+        inet_pton(AF_INET, argv[1], &(aS.sin_addr));
+        socklen_t lgA = sizeof(struct sockaddr_in);
 
         /* Create stream socket with IPv4 domain and IP protocol */
         dS = socket(PF_INET, SOCK_STREAM, 0);
@@ -430,7 +602,7 @@ int main(int argc, char *argv[]){
         }
 
         /* Open connexion */
-        int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+        int con = connect(dS, (struct sockaddr *) &aS, lgA);
 
         if (con<0){
             perror("! Can't find the target !");
@@ -445,8 +617,8 @@ int main(int argc, char *argv[]){
         aS.sin6_family = AF_INET6;
         aS.sin6_port = htons(atoi(argv[2]));
 
-        inet_pton(AF_INET6, argv[1], &(aS.sin6_addr)); 
-        socklen_t lgA = sizeof(struct sockaddr_in6); 
+        inet_pton(AF_INET6, argv[1], &(aS.sin6_addr));
+        socklen_t lgA = sizeof(struct sockaddr_in6);
 
         /* Create stream socket with IPv6 domain and IP protocol */
         dS = socket(PF_INET6, SOCK_STREAM, 0);
@@ -456,7 +628,7 @@ int main(int argc, char *argv[]){
         }
 
         /* Open connexion */
-        int con = connect(dS, (struct sockaddr *) &aS, lgA); 
+        int con = connect(dS, (struct sockaddr *) &aS, lgA);
 
         if (con<0){
             perror("! Can't find the target !");
@@ -465,7 +637,7 @@ int main(int argc, char *argv[]){
     }
 
     /*Free memory*/
-    freeaddrinfo(res); 
+    freeaddrinfo(res);
 
     /* Send username to the server */
     int sd,rc;
@@ -476,57 +648,64 @@ int main(int argc, char *argv[]){
         }
     }
 
-    char list[MAX_BUFFER_LENGTH];
-    /* Receive the channel list */
-    rc = recv(dS, &list, sizeof(list), 0);
-    if(rc<0){
-        printf("! Error receiving the channel list !\n");
-    }
-    printf("%s\n",list);
-
-
     /* TODO : Add choice to manage channels */
     /* /enter to choose the channel to communicate */
     /* /add to add a new channel */
     /* /delete to delete one channel */
     /* /update to update a channel */
 
-    /* Choose how to manage channel */
-    char choice[MAX_NAME_LENGTH];
-    sleep(1);
-    printf("Choose an alternative : \n '/enter' to join a channel \n '/add' to create a new channel \n '/delete' or '/update' a channel \n\n");
-    fgets(choice, MAX_NAME_LENGTH, stdin);
+    while(continueMenu==1){
 
-    int numChoice = num_command_channel(choice);
-    while (numChoice == -1){
-        memset(choice, 0, MAX_NAME_LENGTH);
-        printf("This command is invalid. Please choose between : /enter, /add, /delete\n\n");
+        char list[MAX_LIST_LENGTH];
+        /* Receive the channel list */
+        rc = recv(dS, &list, sizeof(list), 0);
+        if(rc<0){
+            printf("! Error receiving the channel list !\n");
+        }
+        printf("%s\n",list);
+        memset(list,0,MAX_LIST_LENGTH);
+
+        /* Choose how to manage channel */
+        char choice[MAX_NAME_LENGTH];
+        sleep(1);
+        printf("Choose an alternative : \n '/enter' to join a channel \n '/add' to create a new channel \n '/delete' or '/update' a channel \n\n");
         fgets(choice, MAX_NAME_LENGTH, stdin);
-        numChoice = num_command_channel(choice);
-    }
 
-    /* Send the choice to the server */
-    sd = send(dS,&numChoice,sizeof(numChoice),0);
-    if(sd < 0){
-        printf("! Error sending the chosen action to server !\n");
-    }
+        int numChoice = num_command_channel(choice);
+        while (numChoice == -1){
+            memset(choice, 0, MAX_NAME_LENGTH);
+            printf("This command is invalid. Please choose between : /enter, /add, /delete\n\n");
+            fgets(choice, MAX_NAME_LENGTH, stdin);
+            numChoice = num_command_channel(choice);
+        }
 
-    switch (numChoice){
-        case 1 :
-            enter_channel(dS);
-            break;
+        /* Send the choice to the server */
+        sd = send(dS,&numChoice,sizeof(numChoice),0);
+        if(sd < 0){
+            printf("! Error sending the chosen action to server !\n");
+        }
 
-        case 2 :
-            add_channel();
-            break;
+        switch (numChoice){
+            case 1 :
+                enter_channel(dS);
+                break;
 
-        case 3 :
-            delete_channel();
-            break;
+            case 2 :
+                add_channel(dS);
+                break;
 
-        default :
-            printf("! Error, invalid command enter by the client !\n");
-            exit(1);
+            case 3 :
+                delete_channel(dS);
+                break;
+
+            case 4 :
+                update_channel(dS);
+                break;
+
+            default :
+                printf("! Error, invalid command enter by the client !\n");
+                exit(1);
+        }
     }
 
     /* Close connexion */

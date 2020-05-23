@@ -14,19 +14,21 @@
 * Run the program : gcc -o server server.c && ./server PORT
 */
 
-#define MAX_SOCKETS 10
+#define MAX_SOCKETS 100
 #define MAX_NAME_LENGTH 20
-#define MAX_BUFFER_LENGTH 356
+#define MAX_BUFFER_LENGTH 256
+#define MAX_LIST_LENGTH 1200
 #define JOINER_LENGTH 4
 #define JOINER " - "
 #define FILE_PROTOCOL_LENGTH 10
 #define FILE_PROTOCOL "-FILE-"
 #define MAX_CHANNELS 10
-#define MAX_CLIENTS_BY_CHANNEL 5
 
 /* Global sockets array initialize with zeros */
 int sockets[MAX_SOCKETS] = {0};
 int choiceChannel[MAX_SOCKETS] = {-1};
+int nbChannels = 0;
+int continueMenu = 1;
 
 /* Create struct to share socket with username to threads */
 struct sockets_struct
@@ -39,6 +41,7 @@ struct sockets_struct clientStruct;
 
 struct channel_struct{
     int numChannel;
+    int maxClients;
 	char name[MAX_NAME_LENGTH];
 	char description[MAX_BUFFER_LENGTH];
 	int nbClientConnected;
@@ -54,32 +57,52 @@ void psockets(){
     printf("\n");
 }
 
+int get_index_in_array (int chosenCh){
+
+    if(chosenCh == 0){
+        return 0;
+    } else {
+        int i;
+        int indexArray=0;
+        for (i=0;i<chosenCh;i++){
+            indexArray += channels[i].maxClients;
+        }
+        return indexArray;
+    }
+
+}
+
 /* Append new socket to sockets array */
 int add_socket(int sockets[], int socket, int chosenCh){
-    int i = 0;
-    while(i < MAX_SOCKETS && sockets[i] != 0){
+    int i = get_index_in_array(chosenCh);
+    int index = i + channels[chosenCh].maxClients;
+    printf("max : %d\n",index);
+    while(i < index  && sockets[i] != 0){
         i++;
     }
-    if(i == MAX_SOCKETS){
+    if(i == index){
         /* End of array, no more space */
-        perror("! Sockets array full !\n");
+        perror("! Channel array full !\n");
         return -1;
     }
     else{
+        printf("insert at : %d\n",i);
         /* There is space for new socket */
         sockets[i] = socket;
-        choiceChannel[i]=chosenCh;
+        channels[chosenCh].nbClientConnected += 1;
         return i; //return index of the socket;
     }
 }
 
 /* Remove socket to sockets array */
-int remove_socket(int sockets[], int socket){
-    int i = 0;
-    while(i < MAX_SOCKETS && sockets[i] != socket){
-        i++;
-    }
-    if(i == MAX_SOCKETS){
+int remove_socket(int sockets[], int socket, int chosenCh){
+        int i=get_index_in_array(chosenCh);
+        int index = i + channels[chosenCh].maxClients;
+
+        while(i < index && sockets[i] != socket){
+            i++;
+        }
+        if(i == index){
         /* End of array, socket not found */
         perror("! Can't find socket !\n");
         return -1;
@@ -87,44 +110,50 @@ int remove_socket(int sockets[], int socket){
     else{
         /* Socket found, need to remove it */
         sockets[i] = 0;
-        int clientCh;
-        clientCh = choiceChannel[i];
-        channels[clientCh].nbClientConnected -= 1;
-        choiceChannel[i]=-1;
+        channels[chosenCh].nbClientConnected -= 1;
         return 1;
     }
 }
 
+
 void init_channels(){
-    for (int i = 0; i < MAX_CHANNELS; i++){
+    for (int i = 0; i < 5; i++){
         channels[i].numChannel=i;
         channels[i].nbClientConnected = 0;
         switch (i) {
             case 0:
                 strcpy(channels[i].name,"Channel 1");
                 strcpy(channels[i].description,"Join to speak about Java Project");
+                channels[i].maxClients = 5;
               break;
-        
+
             case 1:
                 strcpy(channels[i].name,"Channel 2");
                 strcpy(channels[i].description,"Join to speak about FAR Project");
+                channels[i].maxClients = 4;
               break;
-              
+
             case 2:
                 strcpy(channels[i].name,"Channel 3");
                 strcpy(channels[i].description,"Join to speak about Swift Project");
+                channels[i].maxClients = 6;
               break;
-              
+
             case 3:
                 strcpy(channels[i].name,"Channel 4");
                 strcpy(channels[i].description,"Join to speak about JS Project");
+                channels[i].maxClients = 8;
               break;
-              
-            default:
+
+            case 4:
               strcpy(channels[i].name,"Random");
               strcpy(channels[i].description,"Join to speak about everything");
+              channels[i].maxClients = 9;
+              break;
+
         }
     }
+    nbChannels = 5;
 }
 
 /* Check if the given channel exists or isn't full
@@ -135,7 +164,7 @@ int check_channel(char name[]){
     *chname = '\0';
 
     for(int i = 0; i < MAX_CHANNELS; i++){
-        if(strcmp(channels[i].name,name) == 0 && channels[i].nbClientConnected < MAX_CLIENTS_BY_CHANNEL){
+        if(strcmp(channels[i].name,name) == 0 && channels[i].nbClientConnected < channels[i].maxClients){
             return channels[i].numChannel;
         }
     }
@@ -150,7 +179,12 @@ void *thread_func(void *arg){
     char username[MAX_NAME_LENGTH];
     strcpy(username,args->clientUsername);
     int socketCli = args->socket;
+
+    continueMenu=1;
+
+    /* The number of the channel the client is connected in */
     int numChannel = args->numConnectedChannel;
+    int index = get_index_in_array(numChannel);
 
     /* Create buffer for messages */
     char buffer[MAX_BUFFER_LENGTH];
@@ -173,17 +207,21 @@ void *thread_func(void *arg){
 
         /* Waiting for message from client */
         rv = recv(socketCli, &buffer, sizeof(buffer), 0);
-        if(rv == 0){
+
+        if(rv < 0){
             /* Connexion lost with client, need to remove his socket */
-            remove_socket(sockets, socketCli);
+            remove_socket(sockets, socketCli,numChannel);
             break;
+        }
+        else if(rv == 0){
+
         }
         else{
 
             if(strcmp(buffer,"fin") == 0){
                 //Disconnect client.
-                remove_socket(sockets, socketCli);
-                printf("Client disconnected ...\n");
+                remove_socket(sockets, socketCli,numChannel);
+                continueMenu=0;
                 break;
             }
 
@@ -209,15 +247,15 @@ void *thread_func(void *arg){
                 strcat(message,buffer);
 
                 /* Add here send messsage to only sockets in the channel */
-                for(i = 0; i < MAX_SOCKETS; i++){
+                for(i = index ; i < index + channels[numChannel].maxClients; i++){
                     /* Only send on valid sockets and not to our client socket... */
-                    if(sockets[i] != 0 && sockets[i] != socketCli && choiceChannel[i] == numChannel){ //
+                    if(sockets[i] != 0 && sockets[i] != socketCli){ //
                         /* Send message to client [i] */
                         while(sd = send(sockets[i], message, sizeof(message),0) <= 0){
                             /* Error sending message to client [i] */
-                            if(sd == 0){
+                            if(sd < 0){
                                 /* Because of connexion lost with client [i] need to remove his socket */
-                                remove_socket(sockets, sockets[i]);
+                                remove_socket(sockets, socketCli,numChannel);
                                 break;
                             }
                         }
@@ -226,15 +264,15 @@ void *thread_func(void *arg){
             }
             /* Check if it's a file */
             else if(is_file == 1){
-                for(i = 0; i < MAX_SOCKETS; i++){
+                for(i = index ; i < index + channels[numChannel].maxClients; i++){
                     /* Only send on valid sockets and not to our client socket... */
-                    if(sockets[i] != 0 && sockets[i] != socketCli && choiceChannel[i] == numChannel){
+                    if(sockets[i] != 0 && sockets[i] != socketCli){
                         /* Send message to client [i] */
                         while(sd = send(sockets[i], buffer, sizeof(buffer),0) <= 0){
                             /* Error sending message to client [i] */
-                            if(sd == 0){
+                            if(sd < 0){
                                 /* Because of connexion lost with client [i] need to remove his socket */
-                                remove_socket(sockets, sockets[i]);
+                                remove_socket(sockets, socketCli,numChannel);
                                 break;
                             }
                         }
@@ -243,12 +281,13 @@ void *thread_func(void *arg){
             }
         }
     }
-    pthread_exit(NULL);
+    pthread_exit(0);
 }
 
-void enter_channel(char username[], int socketCli){
-    int rc,sd;
+void enter_channel(int socketCli){
+    //Join a channel
 
+    int sd,rc;
     /* Receive the chosen channel name */
     char chosenChannel[MAX_NAME_LENGTH];
     rc = recv(socketCli, &chosenChannel, sizeof(chosenChannel),0);
@@ -284,7 +323,6 @@ void enter_channel(char username[], int socketCli){
 
     /* The channel is available (id in chosenCh) */
     printf("Client enter in the channel\n");
-    channels[chosenCh].nbClientConnected+=1;
 
     /* Add this new client to sockets tab */
     int indexNewSocket;
@@ -292,23 +330,311 @@ void enter_channel(char username[], int socketCli){
         psockets();
 
         /* Bind socket and username to structure */
-        strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
         clientStruct.numConnectedChannel=chosenCh; //the num of the channel he's connected
-        clientStruct.socket = socketCli;
 
         /* Create thread */
-        pthread_t thread;
-        pthread_create(&thread, NULL, thread_func, (void *)&clientStruct);
+        pthread_t th;
+        pthread_create(&th, NULL, thread_func, (void *)&clientStruct);
+
+        /* Wait the son thread is terminated */
+        pthread_join(th, NULL);
     }
 }
 
-void add_channel(){
+void add_channel(int socketCli){
+    //Add a channel
+
+    int sd,rc;
+    /* Receive the chosen channel name */
+    char chosenName[MAX_NAME_LENGTH];
+    rc = recv(socketCli, &chosenName, sizeof(chosenName),0);
+    if(rc <0){
+        printf("! Error receiving chosen channel from client !\n");
+    }
+
+    if(strcmp(chosenName,"/abort") != 0){
+        char chosenDescription[MAX_BUFFER_LENGTH];
+        rc = recv(socketCli, &chosenDescription, sizeof(chosenDescription),0);
+        if(rc <0){
+            printf("! Error receiving chosen channel from client !\n");
+        }
+
+        int nbMaxCli;
+        rc = recv(socketCli, &nbMaxCli, sizeof(nbMaxCli),0);
+        if(rc <0){
+            printf("! Error receiving chosen channel from client !\n");
+        }
+
+        struct channel_struct newChan;
+        newChan.numChannel=nbChannels;
+        strcpy(newChan.name,chosenName);
+        strcpy(newChan.description,chosenDescription);
+        newChan.maxClients=nbMaxCli;
+        newChan.nbClientConnected=0;
+
+        channels[nbChannels]=newChan;
+        nbChannels+=1;
+
+        printf("New channel created !\n");
+
+    }
+}
+
+void delete_in_array(int numChannel){
+    int i=numChannel;
+    while(i<nbChannels){
+        channels[i]=channels[i+1];
+        if(i!=nbChannels-1){
+            channels[i].numChannel=i;
+        }
+        i++;
+    }
 
 }
 
-void delete_channel(){
+void delete_channel(int socketCli){
+    int sd,rc;
+    char message[MAX_LIST_LENGTH]="";
+    int i;
+
+    strcat(message,"\n\n");
+    strcat(message,"------ Channel list ------");
+    strcat(message,"\n");
+    for(int i = 0; i < nbChannels; i++){
+        strcat(message,channels[i].name);
+        strcat(message,"\n");
+    }
+    strcat(message,"\n");
+
+    /* Send the channel list */
+    sd = send(socketCli, &message, sizeof(message),0);
+    if(sd < 0){
+        printf("! Error sending the channel list to client !\n");
+    }
+
+    /* Receive the chosen channel name */
+    char chosenName[MAX_NAME_LENGTH];
+    rc = recv(socketCli, &chosenName, sizeof(chosenName),0);
+    if(rc <0){
+        printf("! Error receiving chosen channel from client !\n");
+    }
+
+    //TODO : remove channel, how to manage sockets[] ?, how to manage clients connected in ?
+
+    int numCh = check_channel(chosenName);
+    char resp[MAX_BUFFER_LENGTH];
+    if(numCh < 0){
+        strcat(resp,"Channel doesn't exist");
+    } else if(channels[numCh].nbClientConnected != 0){
+        strcat(resp,"You can't delete a channel with clients connected in.");
+    } else {
+        delete_in_array(numCh);
+        nbChannels-=1;
+        strcat(resp,"Channel deleted");
+    }
+
+    /* Send the response to remove a channel */
+    sd = send(socketCli, &resp, sizeof(message),0);
+    if(sd < 0){
+        printf("! Error sending the resp to remove a channel to client !\n");
+    }
 
 }
+
+void update_attr_channel(char chosenName[], int numChannel, int socketCli){
+    int rc, sd;
+
+    if(strcmp(chosenName,"/name")==0){
+        char channelName[MAX_NAME_LENGTH];
+        rc = recv(socketCli,&channelName,sizeof(channelName),0);
+        if (rc < 0){
+         perror("! Error with receiving the new name of the updated channel !");
+        }
+        char *chfin = strchr(channelName, '\n');
+        *chfin = '\0';
+
+        strcpy(channels[numChannel].name,channelName);
+
+        printf("Channel name is updated!\n");
+
+    } else if(strcmp(chosenName,"/description")==0){
+        char channelDescription[MAX_BUFFER_LENGTH];
+        rc = recv(socketCli,&channelDescription,sizeof(channelDescription),0);
+        if (rc < 0){
+         perror("! Error with receiving the new description of the updated channel !");
+        }
+
+        char *chfin = strchr(channelDescription, '\n');
+        *chfin = '\0';
+
+        strcpy(channels[numChannel].description,channelDescription);
+
+        printf("Channel description is updated!\n");
+
+    } else if(strcmp(chosenName,"/maxClients")==0){
+        int channelMaxCli;
+        rc = recv(socketCli,&channelMaxCli,sizeof(channelMaxCli),0);
+        if (rc < 0){
+         perror("! Error with receiving the new max clients of the updated channel !");
+        }
+
+        channels[numChannel].maxClients=channelMaxCli;
+
+        printf("Channel max clients is updated!\n");
+
+    } else {
+        printf("! Error, invalid command !\n");
+    }
+
+}
+
+void update_channel(int socketCli){
+    int sd,rc;
+    int i;
+
+    /* Receive the chosen channel name */
+    char chosenName[MAX_NAME_LENGTH];
+    rc = recv(socketCli, &chosenName, sizeof(chosenName),0);
+    if(rc <0){
+        printf("! Error receiving chosen channel from client !\n");
+    }
+
+    int numCh = check_channel(chosenName);
+    char resp[MAX_BUFFER_LENGTH];
+    int canUp;
+    if(numCh < 0){
+        canUp = -1;
+        strcat(resp,"Channel doesn't exist");
+    } else if(channels[numCh].nbClientConnected != 0){
+        canUp = 0;
+        strcat(resp,"You can't update a channel with clients connected in.");
+    } else {
+        canUp=1;
+        strcat(resp,"You can update the channel.");
+    }
+
+    /* Send the response to update a channel */
+    sd = send(socketCli, &canUp, sizeof(canUp),0);
+    if(sd < 0){
+        printf("! Error sending the resp to remove a channel to client !\n");
+    }
+
+    if(canUp==1){
+        memset(chosenName,0,MAX_NAME_LENGTH);
+        rc = recv(socketCli, &chosenName, sizeof(chosenName),0);
+        if(rc <0){
+            printf("! Error receiving chosen attribute from client !\n");
+        }
+
+        update_attr_channel(chosenName,numCh,socketCli);
+    }
+
+
+}
+
+void *thread_chan(void *arg){
+
+        /* Get client username and socket */
+        struct sockets_struct *args = (void *)arg;
+        char username[MAX_NAME_LENGTH];
+        strcpy(username,args->clientUsername);
+        int socketCli = args->socket;
+
+        int sd,rc;
+
+    while(continueMenu==1){
+        /* Creation of the channels list */
+        char message[MAX_LIST_LENGTH]="";
+        strcat(message,"\n\n");
+        strcat(message,"------ Channel list ------");
+        strcat(message,"\n");
+        for(int i = 0; i < nbChannels; i++){
+            char nbC[2];
+            int nbCoInt = channels[i].nbClientConnected;
+            sprintf(nbC,"%d",nbCoInt);
+            char nbMax[2];
+            sprintf(nbMax,"%d",channels[i].maxClients);
+
+            strcat(message,channels[i].name);
+            strcat(message," : ");
+
+            if(nbCoInt < channels[i].maxClients-2){
+            //green : the channel isn't full
+                char nbCh[] = "\033[00;32m[";
+                strcat(nbCh,nbC);
+                strcat(nbCh,"/");
+                strcat(nbCh,nbMax);
+                strcat(nbCh,"]\033[0m");
+
+                strcat(message,nbCh);
+
+            } else if(nbCoInt >= channels[i].maxClients-2 && nbCoInt < channels[i].maxClients){
+            //orange : only a few places (2)
+                char nbCh[] = "\033[0;33m[";
+                strcat(nbCh,nbC);
+                strcat(nbCh,"/");
+                strcat(nbCh,nbMax);
+                strcat(nbCh,"]\033[0m");
+
+                strcat(message,nbCh);
+
+            } else {
+            //red : the channel is full
+                char nbCh[] = "\033[0;31m[";
+                strcat(nbCh,nbC);
+                strcat(nbCh,"/");
+                strcat(nbCh,nbMax);
+                strcat(nbCh,"]\033[0m");
+
+                strcat(message,nbCh);
+
+            }
+
+            strcat(message,"\n");
+            strcat(message,channels[i].description);
+            strcat(message,"\n\n");
+        }
+
+        /* Send the channel list */
+        sd = send(socketCli, &message, sizeof(message),0);
+        if(sd < 0){
+            printf("! Error sending the channel list to client !\n");
+        }
+        memset(message,0,MAX_LIST_LENGTH);
+
+        /* Receive the chosen command number */
+        int numChoice;
+        rc = recv(socketCli, &numChoice, sizeof(numChoice),0);
+        if(rc <0){
+            printf("! Error receiving chosen channel from client !\n");
+        }
+
+        switch (numChoice){
+            case 1 :
+                enter_channel(socketCli);
+                break;
+
+            case 2 :
+                add_channel(socketCli);
+                break;
+
+            case 3 :
+                delete_channel(socketCli);
+                break;
+
+            case 4 :
+                update_channel(socketCli);
+                break;
+
+            default :
+                printf("! Error, invalid command enter by the client !\n");
+
+        }
+    }
+
+    pthread_exit(0);
+}
+
 
 /* MAIN */
 int main(int argc, char *argv[]){
@@ -357,12 +683,14 @@ int main(int argc, char *argv[]){
             continue;
         }
         if (bind(dS, rp->ai_addr, rp->ai_addrlen) == 0){
-            break;                  /* Success */
+            /* Success */
+            break;
         }
         close(dS);
     }
 
-    if (rp == NULL) {               /* No address succeeded */
+    if (rp == NULL) {
+        /* No address succeeded */
         fprintf(stderr, "Could not bind\n");
         exit(EXIT_FAILURE);
     }
@@ -375,7 +703,6 @@ int main(int argc, char *argv[]){
     init_channels();
 
     while(1){
-
         /* Clean username buffer */
         memset(username, 0, sizeof(username));
 
@@ -386,58 +713,6 @@ int main(int argc, char *argv[]){
         /* Accept the connexion from client */
         int socketCli = accept(dS, (struct sockaddr*)&addrCli,&lg);
 
-        /* Creation of the channels list */
-        char message[MAX_BUFFER_LENGTH]="";
-        strcat(message,"\n\n");
-        strcat(message,"------ Channel list ------");
-        strcat(message,"\n");
-        for(int i = 0; i < MAX_CHANNELS; i++){
-            char nbC[2];
-            int nbCoInt = channels[i].nbClientConnected;
-            sprintf(nbC,"%d",nbCoInt);
-            char nbMax[2];
-            sprintf(nbMax,"%d",MAX_CLIENTS_BY_CHANNEL);
-
-            strcat(message,channels[i].name);
-            strcat(message," : ");
-
-            if(nbCoInt < MAX_CLIENTS_BY_CHANNEL-2){
-            //green : the channel isn't full
-                char nbCh[] = "\033[00;32m[";
-                strcat(nbCh,nbC);
-                strcat(nbCh,"/");
-                strcat(nbCh,nbMax);
-                strcat(nbCh,"]\033[0m");
-
-                strcat(message,nbCh);
-
-            } else if(nbCoInt >= MAX_CLIENTS_BY_CHANNEL-2 && nbCoInt < MAX_CLIENTS_BY_CHANNEL){
-            //orange : only a few places (2)
-                char nbCh[] = "\033[0;33m[";
-                strcat(nbCh,nbC);
-                strcat(nbCh,"/");
-                strcat(nbCh,nbMax);
-                strcat(nbCh,"]\033[0m");
-
-                strcat(message,nbCh);
-
-            } else {
-            //red : the channel is full
-                char nbCh[] = "\033[0;31m[";
-                strcat(nbCh,nbC);
-                strcat(nbCh,"/");
-                strcat(nbCh,nbMax);
-                strcat(nbCh,"]\033[0m");
-
-                strcat(message,nbCh);
-
-            }
-
-            strcat(message,"\n");
-            strcat(message,channels[i].description);
-            strcat(message,"\n\n");
-        }
-
         if(socketCli > 0){
             printf("\033[0;32mConnexion established with client : %s:%d \033[0m\n",inet_ntoa(addrCli.sin_addr),ntohs(addrCli.sin_port));
 
@@ -447,47 +722,19 @@ int main(int argc, char *argv[]){
                 printf("! Error receiving username from client !\n");
             }
 
-            /* Send the channel list */
-            sd = send(socketCli, &message, sizeof(message),0);
-            if(sd < 0){
-                printf("! Error sending the channel list to client !\n");
-            }
+            /* Bind socket and username to structure */
+            strcpy(clientStruct.clientUsername,username); //:username (but username doesn't work...)
+            clientStruct.socket = socketCli;
 
-            /* TODO : Add channels management -> create associated methods */
-            /* if : /enter to choose the channel to communicate */
-            /* else if : /add to add a new channel */
-            /* else if : /delete to delete one channel */
-            /* else : /update to update a channel */
+            /* Create thread */
+            pthread_t thread;
+            pthread_create(&thread, NULL, thread_chan, (void *)&clientStruct);
 
-            /* Receive the chosen command number */
-            int numChoice;
-            rc = recv(socketCli, &numChoice, sizeof(numChoice),0);
-            if(rc <0){
-                printf("! Error receiving chosen channel from client !\n");
-            }
-
-            switch (numChoice){
-                case 1 :
-                    enter_channel(username,socketCli);
-                    break;
-
-                case 2 :
-                    add_channel();
-                    break;
-
-                case 3 :
-                    delete_channel();
-                    break;
-
-                default :
-                    printf("! Error, invalid command enter by the client !\n");
-                    exit(1);
-            }
         }
     }
 
     /* Close connexion */
-    close (dS);
+    close(dS);
     printf("Stop server\n");
     return 1;
 }
